@@ -1,0 +1,440 @@
+import type { CatDef } from "./cats";
+
+function fluffPath(ctx: CanvasRenderingContext2D, r: number) {
+  const bumps = Math.max(14, Math.min(44, Math.round(r / 3.2)));
+  const amp = r * 0.055;
+  ctx.beginPath();
+  let pcx = 0;
+  let pcy = 0;
+  for (let i = 0; i <= bumps; i++) {
+    const a0 = (i / bumps) * Math.PI * 2;
+    const a1 = ((i + 0.5) / bumps) * Math.PI * 2;
+    const x0 = Math.cos(a0) * (r - amp);
+    const y0 = Math.sin(a0) * (r - amp);
+    if (i === 0) ctx.moveTo(x0, y0);
+    else ctx.quadraticCurveTo(pcx, pcy, x0, y0);
+    // control point for the next bump
+    pcx = Math.cos(a1) * (r + amp * 1.6);
+    pcy = Math.sin(a1) * (r + amp * 1.6);
+  }
+  ctx.closePath();
+}
+
+function drawEar(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  side: -1 | 1,
+  def: CatDef,
+) {
+  const ex = side * r * 0.62;
+  const ey = -r * 0.62;
+  const s = r * 0.42;
+  ctx.save();
+  ctx.translate(ex, ey);
+  ctx.rotate(side * 0.35);
+  // outer ear
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.85, s * 0.55);
+  ctx.quadraticCurveTo(-s * 0.35, -s * 0.9, side * s * 0.1, -s * 1.05);
+  ctx.quadraticCurveTo(s * 0.7, -s * 0.5, s * 0.85, s * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = def.body;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.04);
+  ctx.strokeStyle = def.outline;
+  ctx.stroke();
+  // inner ear
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.42, s * 0.45);
+  ctx.quadraticCurveTo(-s * 0.15, -s * 0.35, side * s * 0.08, -s * 0.5);
+  ctx.quadraticCurveTo(s * 0.4, -s * 0.15, s * 0.45, s * 0.45);
+  ctx.closePath();
+  ctx.fillStyle = def.ear;
+  ctx.fill();
+  ctx.restore();
+}
+
+function eyeOpen(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, scale = 1) {
+  ctx.fillStyle = "#2b2233";
+  ctx.beginPath();
+  ctx.ellipse(x, y, r * 0.11 * scale, r * 0.14 * scale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(x - r * 0.035 * scale, y - r * 0.05 * scale, r * 0.045 * scale, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + r * 0.03 * scale, y + r * 0.04 * scale, r * 0.02 * scale, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function eyeHappy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.strokeStyle = "#2b2233";
+  ctx.lineWidth = Math.max(1.2, r * 0.05);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(x, y + r * 0.04, r * 0.11, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+}
+
+function eyeSleepy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.strokeStyle = "#2b2233";
+  ctx.lineWidth = Math.max(1.2, r * 0.05);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(x, y - r * 0.05, r * 0.11, Math.PI * 0.15, Math.PI * 0.85);
+  ctx.stroke();
+}
+
+function eyeSmug(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, def: CatDef) {
+  eyeOpen(ctx, x, y, r);
+  ctx.fillStyle = def.body;
+  ctx.beginPath();
+  ctx.ellipse(x, y - r * 0.09, r * 0.14, r * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#2b2233";
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.12, y - r * 0.02);
+  ctx.lineTo(x + r * 0.12, y - r * 0.02);
+  ctx.stroke();
+}
+
+function eyeHeart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  const s = r * 0.13;
+  ctx.fillStyle = "#ff5c8a";
+  ctx.beginPath();
+  ctx.moveTo(x, y + s);
+  ctx.bezierCurveTo(x - s * 1.4, y - s * 0.1, x - s * 0.7, y - s * 1.1, x, y - s * 0.4);
+  ctx.bezierCurveTo(x + s * 0.7, y - s * 1.1, x + s * 1.4, y - s * 0.1, x, y + s);
+  ctx.fill();
+}
+
+function drawFace(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+  const ey = -r * 0.08;
+  const ex = r * 0.3;
+  const exp = def.expression;
+
+  switch (exp) {
+    case "open":
+      eyeOpen(ctx, -ex, ey, r);
+      eyeOpen(ctx, ex, ey, r);
+      break;
+    case "happy":
+      eyeHappy(ctx, -ex, ey, r);
+      eyeHappy(ctx, ex, ey, r);
+      break;
+    case "wink":
+      eyeOpen(ctx, -ex, ey, r);
+      eyeHappy(ctx, ex, ey, r);
+      break;
+    case "sleepy":
+      eyeSleepy(ctx, -ex, ey, r);
+      eyeSleepy(ctx, ex, ey, r);
+      break;
+    case "smug":
+      eyeSmug(ctx, -ex, ey, r, def);
+      eyeSmug(ctx, ex, ey, r, def);
+      break;
+    case "love":
+      eyeHeart(ctx, -ex, ey, r);
+      eyeHeart(ctx, ex, ey, r);
+      break;
+    case "surprised":
+      eyeOpen(ctx, -ex, ey, r, 1.35);
+      eyeOpen(ctx, ex, ey, r, 1.35);
+      break;
+    case "derp":
+      eyeOpen(ctx, -ex, ey - r * 0.03, r, 1.2);
+      eyeOpen(ctx, ex, ey + r * 0.03, r, 0.85);
+      break;
+    case "cool":
+      // glasses drawn as accessory; eyes hidden
+      break;
+  }
+
+  // blush
+  ctx.fillStyle = "rgba(255,120,150,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.5, r * 0.14, r * 0.14, r * 0.08, 0, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.5, r * 0.14, r * 0.14, r * 0.08, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // nose
+  const ny = r * 0.12;
+  ctx.fillStyle = "#ff8fb0";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.06, ny - r * 0.02);
+  ctx.lineTo(r * 0.06, ny - r * 0.02);
+  ctx.lineTo(0, ny + r * 0.05);
+  ctx.closePath();
+  ctx.fill();
+
+  // mouth
+  ctx.strokeStyle = "#2b2233";
+  ctx.lineWidth = Math.max(1, r * 0.032);
+  ctx.lineCap = "round";
+  if (exp === "surprised") {
+    ctx.fillStyle = "#3a2230";
+    ctx.beginPath();
+    ctx.ellipse(0, ny + r * 0.17, r * 0.07, r * 0.09, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(-r * 0.07, ny + r * 0.07, r * 0.07, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(r * 0.07, ny + r * 0.07, r * 0.07, Math.PI * 0.1, Math.PI * 0.9);
+    ctx.stroke();
+    if (exp === "derp") {
+      ctx.fillStyle = "#ff7fa3";
+      ctx.beginPath();
+      ctx.ellipse(r * 0.05, ny + r * 0.19, r * 0.06, r * 0.08, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // whiskers
+  ctx.strokeStyle = "rgba(60,40,50,0.55)";
+  ctx.lineWidth = Math.max(0.8, r * 0.022);
+  for (const s of [-1, 1] as const) {
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.38, ny + i * r * 0.09);
+      ctx.lineTo(s * r * 0.78, ny + i * r * 0.16 - r * 0.02);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+  switch (def.accessory) {
+    case "bow": {
+      ctx.save();
+      ctx.translate(r * 0.55, -r * 0.78);
+      ctx.rotate(0.3);
+      ctx.fillStyle = "#ff5c8a";
+      const s = r * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-s * 1.3, -s * 0.8);
+      ctx.lineTo(-s * 1.3, s * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s * 1.3, -s * 0.8);
+      ctx.lineTo(s * 1.3, s * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#ff8fb0";
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "collar": {
+      ctx.strokeStyle = "#ff3d6e";
+      ctx.lineWidth = r * 0.09;
+      ctx.beginPath();
+      ctx.arc(0, r * 0.18, r * 0.68, Math.PI * 0.25, Math.PI * 0.75);
+      ctx.stroke();
+      ctx.fillStyle = "#ffd447";
+      ctx.beginPath();
+      ctx.arc(0, r * 0.84, r * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case "crown": {
+      ctx.save();
+      ctx.translate(0, -r * 0.98);
+      const w = r * 0.42;
+      const h = r * 0.3;
+      ctx.fillStyle = "#ffcc33";
+      ctx.strokeStyle = "#d69a12";
+      ctx.lineWidth = Math.max(1, r * 0.025);
+      ctx.beginPath();
+      ctx.moveTo(-w, h * 0.4);
+      ctx.lineTo(-w, -h * 0.4);
+      ctx.lineTo(-w * 0.5, 0);
+      ctx.lineTo(0, -h);
+      ctx.lineTo(w * 0.5, 0);
+      ctx.lineTo(w, -h * 0.4);
+      ctx.lineTo(w, h * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ff5c8a";
+      ctx.beginPath();
+      ctx.arc(0, h * 0.05, r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#57c6ff";
+      ctx.beginPath();
+      ctx.arc(-w * 0.55, h * 0.12, r * 0.045, 0, Math.PI * 2);
+      ctx.arc(w * 0.55, h * 0.12, r * 0.045, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "flower": {
+      ctx.save();
+      ctx.translate(-r * 0.6, -r * 0.7);
+      ctx.fillStyle = "#ffd7e8";
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * r * 0.1, Math.sin(a) * r * 0.1, r * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#ffd447";
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "glasses": {
+      const ey = -r * 0.08;
+      const ex = r * 0.3;
+      ctx.fillStyle = "#23202b";
+      ctx.beginPath();
+      ctx.ellipse(-ex, ey, r * 0.2, r * 0.15, 0, 0, Math.PI * 2);
+      ctx.ellipse(ex, ey, r * 0.2, r * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#23202b";
+      ctx.lineWidth = r * 0.04;
+      ctx.beginPath();
+      ctx.moveTo(-ex + r * 0.2, ey);
+      ctx.lineTo(ex - r * 0.2, ey);
+      ctx.moveTo(-ex - r * 0.2, ey);
+      ctx.lineTo(-r * 0.85, ey - r * 0.06);
+      ctx.moveTo(ex + r * 0.2, ey);
+      ctx.lineTo(r * 0.85, ey - r * 0.06);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(-ex - r * 0.06, ey - r * 0.05, r * 0.06, r * 0.03, -0.5, 0, Math.PI * 2);
+      ctx.ellipse(ex - r * 0.06, ey - r * 0.05, r * 0.06, r * 0.03, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case "star": {
+      ctx.save();
+      ctx.translate(r * 0.62, -r * 0.72);
+      ctx.rotate(0.2);
+      ctx.fillStyle = "#ffd447";
+      ctx.beginPath();
+      const s = r * 0.16;
+      for (let i = 0; i < 10; i++) {
+        const rad = i % 2 === 0 ? s : s * 0.45;
+        const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+        if (i === 0) ctx.moveTo(Math.cos(a) * rad, Math.sin(a) * rad);
+        else ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Draws a fluffy cat ball centered at (x,y).
+ * sx/sy allow squash & stretch, angle rotates the whole cat.
+ */
+export function drawCat(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  def: CatDef,
+  sx = 1,
+  sy = 1,
+  angle = 0,
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.scale(sx, sy);
+
+  // ears first (behind body)
+  drawEar(ctx, r, -1, def);
+  drawEar(ctx, r, 1, def);
+
+  // body
+  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r * 1.1);
+  grad.addColorStop(0, def.body);
+  grad.addColorStop(0.7, def.body);
+  grad.addColorStop(1, def.shade);
+  fluffPath(ctx, r);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.strokeStyle = def.outline;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // clip subsequent markings to body
+  ctx.save();
+  fluffPath(ctx, r);
+  ctx.clip();
+
+  // stripes (tabby)
+  if (def.stripes) {
+    ctx.strokeStyle = def.stripes;
+    ctx.lineWidth = r * 0.07;
+    ctx.lineCap = "round";
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * r * 0.22, -r * 0.95);
+      ctx.lineTo(i * r * 0.16, -r * 0.55);
+      ctx.stroke();
+    }
+    for (const s of [-1, 1] as const) {
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.98, -r * 0.1);
+      ctx.lineTo(s * r * 0.72, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.98, r * 0.2);
+      ctx.lineTo(s * r * 0.75, r * 0.28);
+      ctx.stroke();
+    }
+  }
+
+  // color patch (calico)
+  if (def.patch) {
+    ctx.fillStyle = def.patch;
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.55, -r * 0.45, r * 0.42, r * 0.36, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(r * 0.7, r * 0.55, r * 0.35, r * 0.28, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // muzzle / belly
+  ctx.fillStyle = def.belly;
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.24, r * 0.42, r * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // soft highlight
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath();
+  ctx.ellipse(-r * 0.4, -r * 0.5, r * 0.22, r * 0.12, -0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  drawFace(ctx, r, def);
+  drawAccessory(ctx, r, def);
+
+  ctx.restore();
+}
