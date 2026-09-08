@@ -601,7 +601,7 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
             </div>
             <h2 className="text-3xl font-bold text-[#7a3b55]">LEVEL COMPLETE!</h2>
             <p className="mb-4 text-xs text-[#a0506e]">
-              {level.emoji} {level.name} cleared — pick your next world:
+              <Icon id={LEVEL_ICON[level.id] ?? "trophy"} size={16} /> {level.name} cleared — pick your next world:
             </p>
             <div className="flex flex-col gap-2">
               {LEVELS.filter((l) => l.id !== "meadow").map((l) => (

@@ -63,9 +63,9 @@ export const MUSIC_TRACKS: Record<string, MusicTrack> = {
     leadGain: 0.085,
     bassGain: 0.12,
   },
-  // breezy bossa — Sunny Shore
-  "sunny-shore": {
-    id: "sunny-shore",
+  // breezy bossa — Sunny Shore (level id: beach)
+  beach: {
+    id: "beach",
     bpm: 112,
     rootHz: 293.66, // D4
     chords: [
@@ -81,9 +81,9 @@ export const MUSIC_TRACKS: Record<string, MusicTrack> = {
     leadGain: 0.08,
     bassGain: 0.12,
   },
-  // mysterious music-box — Clover Hills
-  "clover-hills": {
-    id: "clover-hills",
+  // mysterious music-box — Clover Hills (level id: hills)
+  hills: {
+    id: "hills",
     bpm: 88,
     rootHz: 196.0, // G3
     chords: [
@@ -101,8 +101,16 @@ export const MUSIC_TRACKS: Record<string, MusicTrack> = {
   },
 };
 
+/** theme-id → level-id aliases, so any host key resolves to the map track */
+const TRACK_ALIASES: Record<string, string> = {
+  "sunny-shore": "beach",
+  shore: "beach",
+  "clover-hills": "hills",
+};
+
 export function musicTrackFor(id: string): MusicTrack {
-  return MUSIC_TRACKS[id] ?? MUSIC_TRACKS.menu;
+  const key = TRACK_ALIASES[id] ?? id;
+  return MUSIC_TRACKS[key] ?? MUSIC_TRACKS.menu;
 }
 
 /** semitone offset -> frequency for a track */

@@ -86,6 +86,9 @@ class SvgCtx2D {
     this.d = "";
     this.activeClip = null;
   }
+  /* the renderer writes ctx.globalAlpha; the mock stores it as .alpha */
+  get globalAlpha() { return this.alpha; }
+  set globalAlpha(v) { this.alpha = v; }
   /* state */
   save() {
     this.stack.push([this.tf, this.alpha, this.fillStyle, this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.font, this.textAlign, this.textBaseline, this.dash, this.lineDashOffset, this.activeClip]);
@@ -306,6 +309,41 @@ for (const theme of G.getThemes()) {
       }
     }
     if (!done) console.error("✖ no beach frame");
+  }
+
+  /* ------------------------------------------------ hills level frame (forest kitties) */
+  {
+    const level = G.getLevel("hills");
+    G.setActiveThemeId(level.theme.id);
+    const sim = new G.KittySim(
+      {
+        onScore: () => {}, onNext: () => {}, onMerge: () => {}, onDanger: () => {},
+        onGameOver: () => {}, onDiscover: () => {},
+      },
+      level,
+    );
+    let t = 0;
+    sim.prime(t);
+    let drops = 0;
+    let done = false;
+    while (t < 30000 && !done) {
+      t += 16;
+      sim.step(t);
+      if (sim.canDrop && drops < 10) {
+        sim.setPointerWorldX(120 + (drops % 4) * 55);
+        if (sim.drop()) drops++;
+      }
+      if (sim.catViews().length >= 6) {
+        const ctx = new SvgCtx2D();
+        G.renderScene(ctx, sim, t, { theme: level.theme, sprites: bank });
+        const file = path.join(outDir, "frame-hills.png");
+        // eslint-disable-next-line no-await-in-loop
+        await sharp(Buffer.from(ctx.svg(level.theme.hostBg, W, H))).png().toFile(file);
+        console.log("✔", path.relative(ROOT, file));
+        done = true;
+      }
+    }
+    if (!done) console.error("✖ no hills frame");
   }
 }
 main().catch((e) => { console.error(e); process.exit(1); });

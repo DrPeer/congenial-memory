@@ -174,7 +174,10 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
                 key={l.id}
                 disabled={!open}
                 style={[styles.themeChip, active && styles.themeChipActive, !open && { opacity: 0.5 }]}
-                onPress={() => onSelectLevel(l.id)}
+                onPress={() => {
+                  onSelectLevel(l.id);
+                  music.setTrack(l.id); // soundtrack follows the chosen map
+                }}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                   <Icon id={open ? (LEVEL_ICON[l.id] ?? "flower") : "lock"} size={14} />

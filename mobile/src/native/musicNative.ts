@@ -9,8 +9,8 @@ import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 const SRC: Record<string, number> = {
   menu: require("../../assets/music/menu.wav"),
   meadow: require("../../assets/music/meadow.wav"),
-  "sunny-shore": require("../../assets/music/sunny-shore.wav"),
-  "clover-hills": require("../../assets/music/clover-hills.wav"),
+  beach: require("../../assets/music/beach.wav"),
+  hills: require("../../assets/music/hills.wav"),
 };
 
 class NativeMusic {

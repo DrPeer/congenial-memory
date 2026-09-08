@@ -26,10 +26,77 @@ function drawEar(
   r: number,
   side: -1 | 1,
   def: CatDef,
+  style: "normal" | "fin" | "tuft" = "normal",
 ) {
   const ex = side * r * 0.62;
   const ey = -r * 0.62;
   const s = r * 0.42;
+
+  if (style === "fin") {
+    // sea-kitty: rounded fin ear with rib lines
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(side * 0.25);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.8, s * 0.6);
+    ctx.quadraticCurveTo(-s * 0.7, -s * 0.9, 0, -s * 0.95);
+    ctx.quadraticCurveTo(s * 0.7, -s * 0.9, s * 0.8, s * 0.6);
+    ctx.closePath();
+    ctx.fillStyle = def.shade;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.035);
+    ctx.strokeStyle = def.outline;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.strokeStyle = def.body;
+    ctx.lineWidth = Math.max(1, r * 0.05);
+    ctx.lineCap = "round";
+    for (const k of [-0.35, 0, 0.35]) {
+      ctx.beginPath();
+      ctx.moveTo(k * s, s * 0.35);
+      ctx.quadraticCurveTo(k * s * 1.2, -s * 0.2, k * s * 0.6, -s * 0.55);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  if (style === "tuft") {
+    // forest-kitty: taller lynx ear with tip tufts
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.rotate(side * 0.3);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.85, s * 0.6);
+    ctx.quadraticCurveTo(-s * 0.5, -s * 1.05, side * s * 0.05, -s * 1.3);
+    ctx.quadraticCurveTo(s * 0.6, -s * 0.7, s * 0.85, s * 0.6);
+    ctx.closePath();
+    ctx.fillStyle = def.body;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.035);
+    ctx.strokeStyle = def.outline;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.4, s * 0.35);
+    ctx.quadraticCurveTo(-s * 0.2, -s * 0.5, side * s * 0.02, -s * 0.75);
+    ctx.quadraticCurveTo(s * 0.3, -s * 0.3, s * 0.4, s * 0.35);
+    ctx.closePath();
+    ctx.fillStyle = def.shade;
+    ctx.fill();
+    // tuft hairs at the tip
+    ctx.strokeStyle = def.shade;
+    ctx.lineWidth = Math.max(1, r * 0.04);
+    ctx.lineCap = "round";
+    for (const k of [-0.18, 0, 0.18]) {
+      ctx.beginPath();
+      ctx.moveTo(side * s * 0.05 + k * s, -s * 1.28);
+      ctx.lineTo(side * s * 0.05 + k * s * 1.8, -s * 1.62);
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.translate(ex, ey);
   ctx.rotate(side * 0.35);
@@ -109,6 +176,80 @@ function eyeHeart(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.bezierCurveTo(x - s * 1.4, y - s * 0.1, x - s * 0.7, y - s * 1.1, x, y - s * 0.4);
   ctx.bezierCurveTo(x + s * 0.7, y - s * 1.1, x + s * 1.4, y - s * 0.1, x, y + s);
   ctx.fill();
+}
+
+/** map markings: wave stripes on the crown, or forest spots on the flanks */
+function drawPattern(ctx: Ctx2D, r: number, def: CatDef, kind: "stripes" | "spots") {
+  ctx.save();
+  ctx.strokeStyle = def.shade;
+  ctx.fillStyle = def.shade;
+  ctx.lineCap = "round";
+  if (kind === "stripes") {
+    ctx.lineWidth = Math.max(1.4, r * 0.07);
+    for (const [ox, w] of [[-r * 0.28, r * 0.2], [0, r * 0.24], [r * 0.28, r * 0.2]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(ox - w / 2, -r * 0.62);
+      ctx.quadraticCurveTo(ox, -r * 0.82, ox + w / 2, -r * 0.62);
+      ctx.stroke();
+    }
+  } else {
+    for (const [px, py, pr] of [
+      [-r * 0.55, r * 0.3, r * 0.09],
+      [-r * 0.38, r * 0.52, r * 0.06],
+      [r * 0.52, r * 0.34, r * 0.08],
+      [r * 0.36, r * 0.56, r * 0.055],
+    ] as const) {
+      ctx.beginPath();
+      ctx.ellipse(px, py, pr, pr * 0.8, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** map trinket: shell pendant at the neck, or clover behind the ear */
+function drawMapTrinket(ctx: Ctx2D, r: number, kind: "shell" | "clover") {
+  ctx.save();
+  if (kind === "shell") {
+    ctx.translate(0, r * 0.82);
+    ctx.fillStyle = "#ffeef5";
+    ctx.strokeStyle = "#ff8fb0";
+    ctx.lineWidth = Math.max(1, r * 0.035);
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.12);
+    ctx.quadraticCurveTo(-r * 0.22, r * 0.02, -r * 0.18, -r * 0.12);
+    ctx.quadraticCurveTo(-r * 0.08, -r * 0.2, 0, -r * 0.18);
+    ctx.quadraticCurveTo(r * 0.08, -r * 0.2, r * 0.18, -r * 0.12);
+    ctx.quadraticCurveTo(r * 0.22, r * 0.02, 0, r * 0.12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    for (const k of [-0.09, 0, 0.09]) {
+      ctx.moveTo(0, r * 0.1);
+      ctx.lineTo(k * r, -r * 0.14);
+    }
+    ctx.stroke();
+  } else {
+    ctx.translate(-r * 0.66, -r * 0.98);
+    ctx.fillStyle = "#7cb86a";
+    ctx.strokeStyle = "#4e8a3e";
+    ctx.lineWidth = Math.max(0.8, r * 0.025);
+    for (const [cx2, cy2] of [[-r * 0.09, -r * 0.05], [r * 0.09, -r * 0.05], [0, r * 0.1]] as const) {
+      ctx.beginPath();
+      ctx.arc(cx2, cy2, r * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#4e8a3e";
+    ctx.lineWidth = Math.max(1, r * 0.03);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(0, r * 0.12);
+    ctx.quadraticCurveTo(r * 0.06, r * 0.24, r * 0.02, r * 0.3);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawFace(ctx: Ctx2D, r: number, def: CatDef, blink = false) {
@@ -423,9 +564,19 @@ function drawTiara(ctx: Ctx2D, r: number) {
   ctx.restore();
 }
 
+/** per-map restyle (levels.ts catLook): repaint + ears + pattern + accessory */
+export interface CatLookOpts {
+  body?: string;
+  shade?: string;
+  pattern?: "none" | "stripes" | "spots";
+  accessory?: "none" | "shell" | "clover";
+  ears?: "normal" | "fin" | "tuft";
+}
+
 export interface DrawCatOpts {
   /** draw closed lids this frame (idle blink cycle) */
   blink?: boolean;
+  look?: CatLookOpts;
 }
 
 export function drawCat(
@@ -433,12 +584,17 @@ export function drawCat(
   x: number,
   y: number,
   r: number,
-  def: CatDef,
+  defIn: CatDef,
   sx = 1,
   sy = 1,
   angle = 0,
   opts: DrawCatOpts = {},
 ) {
+  const look = opts.look;
+  const def: CatDef =
+    look?.body || look?.shade
+      ? { ...defIn, body: look.body ?? defIn.body, shade: look.shade ?? defIn.shade }
+      : defIn;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
@@ -462,9 +618,9 @@ export function drawCat(
   ctx.stroke();
   ctx.restore();
 
-  // ears first (behind body)
-  drawEar(ctx, r, -1, def);
-  drawEar(ctx, r, 1, def);
+  // ears first (behind body) — style comes from the map look
+  drawEar(ctx, r, -1, def, look?.ears ?? "normal");
+  drawEar(ctx, r, 1, def, look?.ears ?? "normal");
 
   // body
   const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r * 1.1);
@@ -478,6 +634,9 @@ export function drawCat(
   ctx.strokeStyle = def.outline;
   ctx.lineJoin = "round";
   ctx.stroke();
+
+  // map markings on the fur
+  if (look?.pattern && look.pattern !== "none") drawPattern(ctx, r, def, look.pattern);
 
   // clip subsequent markings to body
   ctx.save();
@@ -583,6 +742,9 @@ export function drawCat(
   ctx.fill();
 
   drawFace(ctx, r, def, opts.blink);
+
+  // map trinket (drawn last so it sits on top of the fur)
+  if (look?.accessory && look.accessory !== "none") drawMapTrinket(ctx, r, look.accessory);
   drawAccessory(ctx, r, def);
 
   // plushie stitch seam — the "handmade" signature

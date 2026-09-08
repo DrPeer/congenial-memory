@@ -137,6 +137,13 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
     drifting dust motes inside it, pattern + floating stickers on top.
   - **cats**: grounding shadows, idle breathing, blink cycle, and a golden
     aura + orbiting sparkles for rare kitties (tier 9+).
+  - **per-map casts & environments**: each world repaints the whole cat cast —
+    Sweet Meadow keeps the classic pastel kitties; Sunny Shore gets sea kitties
+    (lagoon/coral/sand fur, wave stripes, fin ears, shell pendant) with sun
+    glow, rolling waves, bubbles and shell decor; Clover Hills gets forest
+    kitties (moss/bark fur, spots, lynx tufts, clover sprig) with layered hills,
+    mist, fireflies and clover decor. The soundtrack switches the moment you
+    pick a map in the menu (`src/game/musicSpec.ts` keys = level ids).
   - HUD: gradient score card with pulse, mode badge, larger tap targets,
     press animations everywhere; splash shows a spinning-paw loading beat.
 - **Engine note**: we deliberately stay on React Native + Skia (not Unity /

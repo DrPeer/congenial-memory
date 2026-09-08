@@ -713,7 +713,7 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
           </View>
           <Text style={styles.modalTitle}>LEVEL COMPLETE!</Text>
           <Text style={styles.modalSub}>
-            {level.emoji} {level.name} cleared — pick your next world:
+            <Icon id={LEVEL_ICON[level.id] ?? "trophy"} size={16} /> {level.name} cleared — pick your next world:
           </Text>
           {LEVELS.filter((l) => l.id !== "meadow").map((l) => (
             <Pressable key={l.id} style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={() => onSelectLevel(l.id)}>

@@ -7,6 +7,7 @@
  * timings are exactly the v1 game — themes repaint, they never re-rule.
  */
 import { CATS } from "./cats";
+import { catLookFor } from "./levels";
 import type { Ctx2D } from "./ctx2d";
 import { drawCat } from "./drawCat";
 import { DECOR_SPRITES, GLYPH_SPRITE, type SpriteBank, type SpriteId as SpriteIdLike } from "./sprites";
@@ -81,7 +82,10 @@ export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: Render
 
     // blink cycle: quick close every ~4.2s, staggered by birth time
     const blink = ((now + c.born * 7) % 4200) < 150;
-    drawCat(ctx, c.x, c.y, c.r, def, s * (1 + sq) * (2 - br), s * (1 - sq) * br, c.angle, { blink });
+    drawCat(ctx, c.x, c.y, c.r, def, s * (1 + sq) * (2 - br), s * (1 - sq) * br, c.angle, {
+      blink,
+      look: catLookFor(sim.level, c.tier),
+    });
   }
 
   drawShots(ctx, sim, now);
@@ -140,6 +144,94 @@ function drawBackground(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, WORLD_W, WORLD_H);
 
+  // ---- per-map environment around the jar ----
+  const env = sim.level.env ?? "meadow";
+  if (env === "shore") {
+    // sun glow top-right
+    const sun = ctx.createRadialGradient(WORLD_W * 0.82, 54, 6, WORLD_W * 0.82, 54, 90);
+    sun.addColorStop(0, "rgba(255, 236, 150, 0.75)");
+    sun.addColorStop(1, "rgba(255, 236, 150, 0)");
+    ctx.fillStyle = sun;
+    ctx.fillRect(WORLD_W * 0.82 - 90, -36, 180, 180);
+    // rolling wave bands at the very bottom
+    ctx.save();
+    for (let w = 0; w < 2; w++) {
+      ctx.globalAlpha = 0.3 - w * 0.1;
+      ctx.fillStyle = w ? "#8fd8f2" : "#bfe9fa";
+      ctx.beginPath();
+      ctx.moveTo(0, WORLD_H);
+      for (let x = 0; x <= WORLD_W; x += 10) {
+        const y = WORLD_H - 26 + w * 12 + Math.sin(x * 0.03 + now * 0.0012 + w * 2) * 7;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(WORLD_W, WORLD_H);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // rising bubbles
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 8; i++) {
+      const seed = i * 53.7;
+      const x = 20 + ((seed * 4.3) % (WORLD_W - 40));
+      const y = WORLD_H - ((seed * 7.7 + now * (0.02 + (i % 3) * 0.008)) % (WORLD_H + 40));
+      const r = 3 + (i % 3) * 2;
+      ctx.beginPath();
+      ctx.arc(x + Math.sin(now * 0.0015 + seed) * 5, y, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (env === "hills") {
+    // layered rolling hills at the bottom
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#a5cf8b";
+    ctx.beginPath();
+    ctx.ellipse(WORLD_W * 0.22, WORLD_H + 30, WORLD_W * 0.55, 90, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = "#8abf72";
+    ctx.beginPath();
+    ctx.ellipse(WORLD_W * 0.85, WORLD_H + 40, WORLD_W * 0.6, 110, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+    // mist band
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, WORLD_H * 0.42 + Math.sin(now * 0.0006) * 8, WORLD_W, 26);
+    // fireflies
+    for (let i = 0; i < 7; i++) {
+      const seed = i * 71.9;
+      const x = 16 + ((seed * 3.9) % (WORLD_W - 32)) + Math.sin(now * 0.001 + seed) * 10;
+      const y = 90 + ((seed * 5.3) % (WORLD_H - 160)) + Math.cos(now * 0.0013 + seed) * 8;
+      const tw = 0.35 + 0.35 * Math.sin(now * 0.004 + seed * 2);
+      ctx.globalAlpha = Math.max(0.08, tw);
+      ctx.fillStyle = "#ffe98a";
+      ctx.beginPath();
+      ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = Math.max(0.04, tw * 0.4);
+      ctx.beginPath();
+      ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  } else {
+    // meadow: drifting blossom petals
+    ctx.save();
+    ctx.fillStyle = "#ffc9dd";
+    for (let i = 0; i < 9; i++) {
+      const seed = i * 61.3;
+      const y = ((seed * 6.1 + now * (0.014 + (i % 4) * 0.005)) % (WORLD_H + 30)) - 15;
+      const x = 14 + ((seed * 4.7) % (WORLD_W - 28)) + Math.sin(now * 0.0012 + seed) * 14;
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 4.5, 3, now * 0.002 + seed, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // drifting dust motes inside the jar (depth without parallax bodies)
   ctx.save();
   ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -169,11 +261,23 @@ function drawBackground(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts
   ctx.globalAlpha = theme ? theme.decorAlpha : 0.12;
   ctx.font = "26px serif";
   ctx.textAlign = "center";
-  const glyphs = ["🐾", "💗", "🐾", "🧶", "🐾", "💗", "🐟", "🐾"];
-  for (let i = 0; i < DECOR_SPRITES.length; i++) {
+  const envDeco: Record<string, { ids: string[]; glyphs: string[] }> = {
+    meadow: { ids: DECOR_SPRITES, glyphs: ["🐾", "💗", "🐾", "", "🐾", "💗", "🐟", "🐾"] },
+    shore: {
+      ids: ["shell", "fish", "drop", "star", "shell", "drop", "fish", "star"],
+      glyphs: ["🐚", "🐟", "", "⭐", "", "💧", "", "⭐"],
+    },
+    hills: {
+      ids: ["clover", "flower", "clover", "sparkle", "clover", "flower", "cloud", "clover"],
+      glyphs: ["🍀", "", "🍀", "✨", "🍀", "", "", "🍀"],
+    },
+  };
+  const deco = envDeco[sim.level.env ?? "meadow"] ?? envDeco.meadow;
+  const glyphs = deco.glyphs;
+  for (let i = 0; i < deco.ids.length; i++) {
     const x = (i * 137 + 40) % WORLD_W;
     const y = ((i * 211 + now * 0.01) % (WORLD_H + 60)) - 30;
-    const drawn = drawSpriteOr(ctx, opts, DECOR_SPRITES[i], x, y, 34, 0, glyphs[i]);
+    const drawn = drawSpriteOr(ctx, opts, deco.ids[i], x, y, 34, 0, glyphs[i]);
     if (!drawn) ctx.fillText(glyphs[i], x, y);
   }
   ctx.restore();
@@ -491,7 +595,9 @@ function drawShots(ctx: Ctx2D, sim: KittySim, now: number) {
     const sc = 1 + 0.25 * k;
     ctx.save();
     ctx.globalAlpha = 1 - k;
-    drawCat(ctx, sh.x, sh.y - ease * 300, def.radius * 0.95, def, sc, sc, k * 5);
+    drawCat(ctx, sh.x, sh.y - ease * 300, def.radius * 0.95, def, sc, sc, k * 5, {
+      look: catLookFor(sim.level, sh.tier),
+    });
     ctx.restore();
   }
 }

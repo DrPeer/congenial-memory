@@ -193,6 +193,7 @@ export default function App() {
 
   const selectLevel = useCallback((id: string) => {
     setLevelId(id);
+    music.playTrack(id); // the soundtrack follows the chosen map, right away
     try {
       localStorage.setItem(LEVEL_KEY, id);
     } catch {
