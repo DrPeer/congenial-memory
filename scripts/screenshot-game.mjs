@@ -39,6 +39,7 @@ fs.writeFileSync(
 export * from "${ROOT}/src/game/sim";
 export * from "${ROOT}/src/plugins/registry";
 export { SPRITE_IDS } from "${ROOT}/src/game/sprites";
+export * from "${ROOT}/src/game/levels";
 `,
 );
 const bundle = path.join(tmp, "game.cjs");
@@ -261,6 +262,41 @@ for (const theme of G.getThemes()) {
       if (sim.over) break;
     }
     if (!done) console.error("✖ no danger frame captured");
+  }
+
+  /* ------------------------------------------------ beach level frame (obstacles) */
+  {
+    const level = G.getLevel("beach");
+    G.setActiveThemeId(level.theme.id);
+    const sim = new G.KittySim(
+      {
+        onScore: () => {}, onNext: () => {}, onMerge: () => {}, onDanger: () => {},
+        onGameOver: () => {}, onDiscover: () => {},
+      },
+      level,
+    );
+    let t = 0;
+    sim.prime(t);
+    let drops = 0;
+    let done = false;
+    for (let f = 0; f < 60 * 90 && !done; f++) {
+      t += 1000 / 60;
+      sim.step(t);
+      if (f % 34 === 0 && sim.canDrop) {
+        sim.setPointerWorldX(80 + ((drops * 47) % (W - 160)));
+        if (sim.drop()) drops++;
+      }
+      if (sim.catViews().length >= 6) {
+        const ctx = new SvgCtx2D();
+        G.renderScene(ctx, sim, t, { theme: level.theme, sprites: bank });
+        const file = path.join(outDir, "frame-beach.png");
+        // eslint-disable-next-line no-await-in-loop
+        await sharp(Buffer.from(ctx.svg(level.theme.hostBg, W, H))).png().toFile(file);
+        console.log("✔", path.relative(ROOT, file));
+        done = true;
+      }
+    }
+    if (!done) console.error("✖ no beach frame");
   }
 }
 main().catch((e) => { console.error(e); process.exit(1); });

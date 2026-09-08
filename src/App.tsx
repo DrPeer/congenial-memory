@@ -3,7 +3,13 @@ import CatIcon from "./components/CatIcon";
 import Game from "./components/Game";
 import { CATS } from "./game/cats";
 import { sfx } from "./game/sound";
+import { LEVELS, getLevel } from "./game/levels";
+import { MissionStore } from "./game/missions";
 import { activeTheme, getThemes, setActiveThemeId } from "./plugins/registry";
+
+const LEVEL_KEY = "kittydrop-level";
+const LEVELS_KEY = "kittydrop-levels";
+const MISSIONS_KEY = "kittydrop-missions";
 
 const BEST_KEY = "kittydrop-best";
 const THEME_KEY = "kittydrop-theme";
@@ -18,6 +24,50 @@ export default function App() {
     }
   });
   const [heroTier, setHeroTier] = useState(6);
+  const [levelId, setLevelId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(LEVEL_KEY) || "meadow";
+    } catch {
+      return "meadow";
+    }
+  });
+  const [unlocked, setUnlocked] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(LEVELS_KEY) || "null") ?? ["meadow"];
+    } catch {
+      return ["meadow"];
+    }
+  });
+  const missionList = (() => {
+    try {
+      const store = new MissionStore({
+        load: () => JSON.parse(localStorage.getItem(MISSIONS_KEY) || "null") ?? { progress: {}, done: [] },
+        save: () => {},
+      });
+      return store.list().filter((m) => !m.complete).slice(0, 3);
+    } catch {
+      return [];
+    }
+  })();
+
+  const selectLevel = useCallback((id: string) => {
+    setLevelId(id);
+    try {
+      localStorage.setItem(LEVEL_KEY, id);
+    } catch {
+      /* ignore */
+    }
+    setUnlocked((u) => {
+      if (u.includes(id)) return u;
+      const next = [...u, id];
+      try {
+        localStorage.setItem(LEVELS_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
   const [themeId, setThemeId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(THEME_KEY);
@@ -61,7 +111,13 @@ export default function App() {
   if (screen === "game") {
     return (
       <div className="h-full w-full">
-        <Game onExit={() => setScreen("menu")} best={best} onBest={onBest} />
+        <Game
+          onExit={() => setScreen("menu")}
+          best={best}
+          onBest={onBest}
+          level={getLevel(levelId)}
+          onSelectLevel={selectLevel}
+        />
       </div>
     );
   }
@@ -120,6 +176,36 @@ export default function App() {
 
       {/* buttons */}
       <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3">
+        <div className="flex gap-2">
+          {LEVELS.map((l) => {
+            const open = unlocked.includes(l.id);
+            return (
+              <button
+                key={l.id}
+                disabled={!open}
+                onClick={() => selectLevel(l.id)}
+                className={`btn-cute px-3 py-1 text-xs ${
+                  l.id === levelId ? "bg-[#ff8fb0] text-white" : "bg-white/80 text-[#a0506e]"
+                } ${open ? "" : "opacity-50"}`}
+              >
+                {open ? l.emoji : "🔒"} {l.name}
+              </button>
+            );
+          })}
+        </div>
+        {missionList.length > 0 && (
+          <div className="w-full max-w-sm rounded-2xl bg-white/70 px-4 py-2 text-left shadow-sm">
+            <div className="text-[10px] font-bold tracking-[0.25em] text-[#c46b8f]">MISSIONS</div>
+            {missionList.map((m) => (
+              <div key={m.id} className="flex justify-between text-[11px] font-semibold text-[#a0506e]">
+                <span>
+                  {m.text} ({m.value}/{m.goal})
+                </span>
+                <span className="text-[#7a5210]">+{m.reward}🪙</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2">
           {getThemes().map((t) => (
             <button

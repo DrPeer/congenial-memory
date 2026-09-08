@@ -11,6 +11,7 @@ import { renderScene } from "./render";
 import { sfx } from "./sound";
 import { webSprites } from "./spritesWeb";
 import { KittySim, WORLD_H, WORLD_W, type MergeEvent, type SimCallbacks } from "./sim";
+import type { LevelDef } from "./levels";
 import { activeTheme } from "../plugins/registry";
 
 export type EngineCallbacks = SimCallbacks;
@@ -30,7 +31,8 @@ export class KittyEngine {
 
   constructor(
     private canvas: HTMLCanvasElement,
-    cb: EngineCallbacks,
+    cb: EngineCallbacks & { onWin?: () => void },
+    level?: LevelDef,
   ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("no 2d ctx");
@@ -41,6 +43,7 @@ export class KittyEngine {
       onNext: cb.onNext,
       onDanger: cb.onDanger,
       onDiscover: cb.onDiscover,
+      onWin: () => cb.onWin?.(),
       onGameOver: (s, biggest) => {
         sfx.sad();
         cb.onGameOver(s, biggest);
@@ -61,7 +64,7 @@ export class KittyEngine {
         }
         cb.onMerge(e);
       },
-    });
+    }, level);
   }
 
   get paused() {
@@ -84,6 +87,17 @@ export class KittyEngine {
   }
   get coinsEarned() {
     return this.sim.coinsEarned;
+  }
+
+  /** ad/coin revive: clears the stack top and continues the run */
+  revive(): boolean {
+    return this.sim.revive();
+  }
+  get won() {
+    return this.sim.won;
+  }
+  get level() {
+    return this.sim.level;
   }
 
   /** coin booster: shoot the topmost kitty out of the cup */

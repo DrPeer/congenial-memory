@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { CATS } from "../../../src/game/cats";
+import { LEVELS } from "../../../src/game/levels";
+import { missionStore } from "./missionsNative";
 import { activeTheme, getThemes } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
 import { sfx } from "./sounds";
@@ -17,12 +19,15 @@ interface Props {
   best: number;
   themeId: string;
   onTheme: (id: string) => void;
+  levelId: string;
+  unlocked: string[];
+  onSelectLevel: (id: string) => void;
   onPlay: () => void;
 }
 
 const DECO = ["🐾", "🧶", "💗", "🐟", "", "✨", "", "💗"];
 
-export default function MenuScreen({ best, themeId, onTheme, onPlay }: Props) {
+export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, onSelectLevel, onPlay }: Props) {
   const insets = useSafeAreaInsets();
   const [heroTier, setHeroTier] = useState(6);
   const float = useRef(new Animated.Value(0)).current;
@@ -115,6 +120,39 @@ export default function MenuScreen({ best, themeId, onTheme, onPlay }: Props) {
           <Text style={styles.coinChipText}>🪙 {coins.toLocaleString()} coins</Text>
         </View>
         <View style={styles.themeRow}>
+          {LEVELS.map((l) => {
+            const open = unlocked.includes(l.id);
+            const active = l.id === levelId;
+            return (
+              <Pressable
+                key={l.id}
+                disabled={!open}
+                style={[styles.themeChip, active && styles.themeChipActive, !open && { opacity: 0.5 }]}
+                onPress={() => onSelectLevel(l.id)}
+              >
+                <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
+                  {open ? l.emoji : "🔒"} {l.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.missionBox}>
+          <Text style={styles.missionTitle}>MISSIONS</Text>
+          {missionStore
+            .list()
+            .filter((m) => !m.complete)
+            .slice(0, 3)
+            .map((m) => (
+              <View key={m.id} style={styles.missionRow}>
+                <Text style={styles.missionText}>
+                  {m.text} ({m.value}/{m.goal})
+                </Text>
+                <Text style={styles.missionReward}>+{m.reward}🪙</Text>
+              </View>
+            ))}
+        </View>
+        <View style={styles.themeRow}>
           {getThemes().map((t) => (
             <Pressable
               key={t.id}
@@ -164,6 +202,11 @@ const styles = StyleSheet.create({
   howtoLine: { fontSize: 14, color: "#7a3b55" },
   cta: { width: "100%", maxWidth: 380, alignItems: "center", gap: 12 },
   themeRow: { flexDirection: "row", gap: 8 },
+  missionBox: { width: "100%", maxWidth: 380, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 },
+  missionTitle: { fontSize: 10, fontWeight: "800", letterSpacing: 3, color: "#c46b8f" },
+  missionRow: { flexDirection: "row", justifyContent: "space-between" },
+  missionText: { fontSize: 11, fontWeight: "600", color: "#a0506e" },
+  missionReward: { fontSize: 11, fontWeight: "700", color: "#7a5210" },
   coinChip: { borderRadius: 999, backgroundColor: "#ffd76a", paddingHorizontal: 14, paddingVertical: 6 },
   coinChipText: { fontSize: 13, fontWeight: "800", color: "#7a5210" },
   themeChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.8)" },

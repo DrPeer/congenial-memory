@@ -11,6 +11,7 @@
  */
 import Matter from "matter-js";
 import { CATS, MAX_TIER, MEGA_MERGE_BONUS, randomDropTier } from "./cats";
+import { LEVELS, type LevelDef } from "./levels";
 
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 
@@ -92,6 +93,8 @@ export interface SimCallbacks {
   onDanger: (danger: boolean) => void;
   onGameOver: (score: number, biggest: number) => void;
   onDiscover: (tier: number) => void;
+  /** fired once when the level's win tier is created */
+  onWin?: () => void;
 }
 
 export function easeOutBack(x: number): number {
@@ -142,11 +145,22 @@ export class KittySim {
     return DEAD_LINE_Y - this.cupLift;
   }
 
-  constructor(private cb: SimCallbacks) {
+  /** current level (rules + obstacles + cosmetics id) */
+  level: LevelDef = LEVELS[0];
+  won = false;
+  revivesUsed = 0;
+  private leftTop = CUP_LEFT_TOP;
+  private rightTop = CUP_RIGHT_TOP;
+
+  constructor(private cb: SimCallbacks, level?: LevelDef) {
+    if (level) this.level = level;
+    this.leftTop = CUP_LEFT_TOP + this.level.cupInset;
+    this.rightTop = CUP_RIGHT_TOP - this.level.cupInset;
     this.engine.gravity.y = 1.05;
     this.engine.positionIterations = 8;
     this.engine.velocityIterations = 6;
     this.buildWalls();
+    this.buildObstacles();
 
     Events.on(this.engine, "collisionStart", (ev) => {
       for (const pair of ev.pairs) {
@@ -167,6 +181,18 @@ export class KittySim {
 
     this.cb.onNext(this.currentTier, this.nextTier);
     this.cb.onScore(0);
+  }
+
+  private buildObstacles() {
+    for (const o of this.level.obstacles) {
+      const b = Bodies.circle(o.x, o.y, o.r, {
+        isStatic: true,
+        friction: 0.5,
+        restitution: 0.05,
+        label: "rock",
+      });
+      World.add(this.engine.world, b);
+    }
   }
 
   private buildWalls() {
@@ -206,7 +232,7 @@ export class KittySim {
 
   clampX(x: number, tier: number): number {
     const r = CATS[tier].radius;
-    return Math.max(CUP_LEFT_TOP + r + 4, Math.min(CUP_RIGHT_TOP - r - 4, x));
+    return Math.max(this.leftTop + r + 4, Math.min(this.rightTop - r - 4, x));
   }
 
   setPointerWorldX(x: number) {
@@ -304,6 +330,10 @@ export class KittySim {
           y: Math.min((a.velocity.y + b.velocity.y) / 2, 0) - 1.2,
         });
         this.biggest = Math.max(this.biggest, newTier);
+        if (!this.won && newTier >= this.level.winTier) {
+          this.won = true;
+          this.cb.onWin?.();
+        }
         this.burst(mx, my, 6 + newTier * 2, ["💕", "✨", "🐾"]);
         // nudge neighbours slightly (soft poof)
         for (const body of Composite.allBodies(this.engine.world)) {
@@ -386,6 +416,35 @@ export class KittySim {
     this.removeBody(top);
     this.burst(top.position.x, topY, 14, ["💨", "✨", "⭐"]);
     this.addPopup(top.position.x, topY - 30, "BYE-KITTY!", "#5aa7e8", 22, 1200);
+    return true;
+  }
+
+  /** Continue after game over (ad/coins handled by host): clears the top of the stack. */
+  revive(): boolean {
+    if (!this.over || this.revivesUsed >= 1) return false;
+    this.revivesUsed++;
+    this.over = false;
+    this.danger = false;
+    this.dangerSince = null;
+    this.dangerLeft = 0;
+    this.canDrop = true;
+    for (let i = 0; i < 3; i++) {
+      let top: Matter.Body | null = null;
+      let topY = Infinity;
+      for (const body of Composite.allBodies(this.engine.world)) {
+        if (body.label !== "cat") continue;
+        if (body.position.y < topY) {
+          topY = body.position.y;
+          top = body;
+        }
+      }
+      if (!top) break;
+      const d = this.cats.get(top.id);
+      this.shots.push({ x: top.position.x, y: top.position.y, tier: d?.tier ?? 0, t0: performance.now() });
+      this.removeBody(top);
+    }
+    this.burst(WORLD_W / 2, this.deadLineY + 40, 20, ["✨", "💖", "✨"]);
+    this.addPopup(WORLD_W / 2, this.deadLineY + 60, "SECOND WIND!", "#57c6ff", 28, 1600);
     return true;
   }
 

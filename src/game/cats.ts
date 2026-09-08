@@ -9,7 +9,7 @@ export type Expression =
   | "derp"
   | "cool";
 
-export type Accessory = "none" | "bow" | "collar" | "crown" | "flower" | "glasses" | "star";
+export type Accessory = "none" | "bow" | "collar" | "crown" | "flower" | "glasses" | "star" | "pirate" | "tiara";
 
 export interface CatDef {
   name: string;
@@ -176,6 +176,34 @@ export const CATS: CatDef[] = [
     accessory: "crown",
     points: 660,
     meowPitch: 0.5,
+  },
+  {
+    name: "Cap'n Whiskers",
+    radius: 137,
+    body: "#7e8ba0",
+    shade: "#5f6b81",
+    belly: "#dfe6ef",
+    ear: "#f2a9b5",
+    outline: "#48536a",
+    stripes: "#55617a",
+    expression: "smug",
+    accessory: "pirate",
+    points: 800,
+    meowPitch: 0.45,
+  },
+  {
+    name: "Queen Flufforia",
+    radius: 145,
+    body: "#efe4ff",
+    shade: "#cdbcec",
+    belly: "#faf6ff",
+    ear: "#ffb3c8",
+    outline: "#9d86c9",
+    patch: "#c9b6ef",
+    expression: "love",
+    accessory: "tiara",
+    points: 1000,
+    meowPitch: 0.4,
   },
 ];
 

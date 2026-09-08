@@ -15,7 +15,12 @@ import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { getLevel } from "../src/game/levels";
 import { activeTheme, setActiveThemeId } from "../src/plugins/registry";
+import { hydrateMissions } from "./src/native/missionsNative";
+
+const LEVEL_KEY = "kittydrop-level";
+const LEVELS_KEY = "kittydrop-levels";
 import GameScreen from "./src/native/GameScreen";
 import MenuScreen from "./src/native/MenuScreen";
 
@@ -27,6 +32,8 @@ export default function App() {
   const [screen, setScreen] = useState<"menu" | "game">("menu");
   const [best, setBest] = useState(0);
   const [themeId, setThemeId] = useState(activeTheme().id);
+  const [levelId, setLevelId] = useState("meadow");
+  const [unlocked, setUnlocked] = useState<string[]>(["meadow"]);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
@@ -36,6 +43,11 @@ export default function App() {
     (async () => {
       try {
         setBest(Number((await AsyncStorage.getItem(BEST_KEY)) || 0));
+        const savedLevel = await AsyncStorage.getItem(LEVEL_KEY);
+        if (savedLevel) setLevelId(savedLevel);
+        const savedLevels = await AsyncStorage.getItem(LEVELS_KEY);
+        if (savedLevels) setUnlocked(JSON.parse(savedLevels) as string[]);
+        void hydrateMissions();
         const savedTheme = await AsyncStorage.getItem(THEME_KEY);
         if (savedTheme) {
           setActiveThemeId(savedTheme);
@@ -45,6 +57,17 @@ export default function App() {
         /* first launch */
       }
     })();
+  }, []);
+
+  const onSelectLevel = useCallback((id: string) => {
+    setLevelId(id);
+    AsyncStorage.setItem(LEVEL_KEY, id).catch(() => {});
+    setUnlocked((u) => {
+      if (u.includes(id)) return u;
+      const next = [...u, id];
+      AsyncStorage.setItem(LEVELS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   }, []);
 
   const onTheme = useCallback((id: string) => {
@@ -63,9 +86,23 @@ export default function App() {
       <StatusBar style="dark" />
       <View style={{ flex: 1, backgroundColor: "#ffd6e7" }}>
         {screen === "game" ? (
-          <GameScreen best={best} onBest={onBest} onExit={() => setScreen("menu")} />
+          <GameScreen
+            best={best}
+            onBest={onBest}
+            onExit={() => setScreen("menu")}
+            level={getLevel(levelId)}
+            onSelectLevel={onSelectLevel}
+          />
         ) : (
-          <MenuScreen best={best} themeId={themeId} onTheme={onTheme} onPlay={() => setScreen("game")} />
+          <MenuScreen
+            best={best}
+            themeId={themeId}
+            onTheme={onTheme}
+            levelId={levelId}
+            unlocked={unlocked}
+            onSelectLevel={onSelectLevel}
+            onPlay={() => setScreen("game")}
+          />
         )}
       </View>
     </SafeAreaProvider>

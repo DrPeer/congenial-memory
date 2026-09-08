@@ -31,6 +31,7 @@ export interface RenderOpts {
 export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts = {}) {
   drawBackground(ctx, now, opts);
   drawCup(ctx, sim, opts);
+  drawObstacles(ctx, sim);
 
   for (const c of sim.catViews()) {
     const def = CATS[c.tier];
@@ -195,6 +196,63 @@ function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number) {
     ctx.fillText("⚠️ TOO FULL! ⚠️", WORLD_W / 2, DEAD_LINE_Y - 10);
   }
   ctx.restore();
+}
+
+/** level obstacles: reef rocks (beach) / mossy boulders (hills) */
+function drawObstacles(ctx: Ctx2D, sim: KittySim) {
+  for (const o of sim.level.obstacles) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    const reef = o.kind === "reef";
+    const g = ctx.createRadialGradient(-o.r * 0.3, -o.r * 0.35, o.r * 0.1, 0, 0, o.r * 1.05);
+    g.addColorStop(0, reef ? "#f2b3a2" : "#b3bfa8");
+    g.addColorStop(1, reef ? "#d98873" : "#8a977e");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    // lumpy rock silhouette
+    ctx.moveTo(-o.r, o.r * 0.15);
+    ctx.quadraticCurveTo(-o.r * 0.9, -o.r * 0.8, -o.r * 0.2, -o.r * 0.92);
+    ctx.quadraticCurveTo(o.r * 0.55, -o.r * 1.0, o.r * 0.92, -o.r * 0.25);
+    ctx.quadraticCurveTo(o.r * 1.05, o.r * 0.5, o.r * 0.3, o.r * 0.9);
+    ctx.quadraticCurveTo(-o.r * 0.45, o.r * 1.0, -o.r, o.r * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = reef ? "#b96a58" : "#6d7c62";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    // speckles
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    for (const [px, py, pr] of [[-0.3, -0.25, 0.09], [0.25, 0.1, 0.07], [-0.05, 0.4, 0.06]] as const) {
+      ctx.beginPath();
+      ctx.arc(px * o.r, py * o.r, pr * o.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (reef) {
+      // little starfish hitchhiker
+      ctx.fillStyle = "#ff8fb0";
+      ctx.save();
+      ctx.translate(o.r * 0.35, -o.r * 0.45);
+      ctx.rotate(0.4);
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        ctx.lineTo(Math.cos(a) * o.r * 0.28, Math.sin(a) * o.r * 0.28);
+        const a2 = a + Math.PI / 5;
+        ctx.lineTo(Math.cos(a2) * o.r * 0.12, Math.sin(a2) * o.r * 0.12);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // moss cap
+      ctx.fillStyle = "#7cb86a";
+      ctx.beginPath();
+      ctx.ellipse(-o.r * 0.15, -o.r * 0.78, o.r * 0.5, o.r * 0.2, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 }
 
 /** kitties launched out by the shoot booster: spin up & fade */

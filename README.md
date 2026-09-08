@@ -59,6 +59,20 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 
 ---
 
+## Worlds, revive & missions (progression)
+
+- **13 hand-detailed kitties** now (plushie stitch seams, fur tufts, paw toes, tails,
+  whisker pores; new royals: Cap'n Whiskers ‍☠️ & Queen Flufforia 👑) — longer chain = harder climb.
+- **Win a world** by raising its target kitty: 🌸 Sweet Meadow (Sakura) → unlocks a choice of
+  🏖️ **Sunny Shore** (reef-rock obstacles, sand/sea skin, needs Nimbus) or ⛰️ **Clover Hills**
+  (narrower basket + mossy boulders, needs Royal Chonk). Unlocks persist; menus show 🔒 until then.
+- **Lose?** Revive once per run: 📺 watch the (simulated) sponsor reel **or** pay 🪙30.
+  On Shore/Hills, retrying the level itself costs an ad watch; starting a new game is always free.
+- **Missions** (menu panel + in-run toasts, coin rewards, persisted): merge counts, combos,
+  tiers, score goals, booster use, surviving a fuse, clearing each world.
+- The ad slot is a clean seam (`src/game/ads.ts`): swap `SimulatedAdProvider` for AdMob/AdSense
+  later without touching game code.
+
 ## Coins, boosters & the overfull countdown
 
 - Merges mint 🪙 **coins** into a persistent wallet (`kittydrop-coins` key, both platforms).

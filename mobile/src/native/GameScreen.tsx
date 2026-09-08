@@ -13,7 +13,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AD_SECONDS, pickFakeAd, type FakeAd } from "../../../src/game/ads";
 import { CATS, MAX_TIER, comboWord } from "../../../src/game/cats";
+import { LEVELS, type LevelDef } from "../../../src/game/levels";
+import type { MissionEvent } from "../../../src/game/missions";
 import { renderScene } from "../../../src/game/render";
 import {
   BOOST_RAISE_COST,
@@ -26,6 +29,7 @@ import {
 } from "../../../src/game/sim";
 import { activeTheme } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
+import { missionStore } from "./missionsNative";
 import { nativeSprites } from "./spritesNative";
 import { sfx } from "./sounds";
 import { SkiaCtx2D } from "./skiaCtx";
@@ -34,7 +38,11 @@ interface Props {
   best: number;
   onBest: (b: number) => void;
   onExit: () => void;
+  level: LevelDef;
+  onSelectLevel: (id: string) => void;
 }
+
+const REVIVE_COST = 30;
 
 interface Banner {
   id: number;
@@ -45,7 +53,7 @@ interface Banner {
 
 const BG = "#ffd6e7";
 
-export default function GameScreen({ best, onBest, onExit }: Props) {
+export default function GameScreen({ best, onBest, onExit, level, onSelectLevel }: Props) {
   const insets = useSafeAreaInsets();
   const simRef = useRef<KittySim | null>(null);
   const viewRef = useRef({ w: 0, h: 0, scale: 1, offX: 0, offY: 0 });
@@ -69,6 +77,53 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
   const [showChain, setShowChain] = useState(false);
   const [runKey, setRunKey] = useState(0);
   const [coins, setCoins] = useState(0);
+  const [win, setWin] = useState(false);
+  const [reviveUsed, setReviveUsed] = useState(false);
+  const [ad, setAd] = useState<{ purpose: "revive" | "retry"; left: number } | null>(null);
+  const [adCard, setAdCard] = useState<FakeAd | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const dangerSeen = useRef(false);
+
+  const feed = useCallback((ev: MissionEvent) => {
+    const done = missionStore.apply(ev);
+    if (done.length) {
+      setCoins((c) => {
+        let v = c;
+        for (const m of done) v += m.reward;
+        AsyncStorage.setItem("kittydrop-coins", String(v)).catch(() => {});
+        return v;
+      });
+      setToast(done.map((m) => `✅ ${m.text}  +${m.reward}🪙`).join("  ·  "));
+      setTimeout(() => setToast(null), 2800);
+    }
+  }, []);
+
+  const startAd = useCallback((purpose: "revive" | "retry") => {
+    setAdCard(pickFakeAd());
+    setAd({ purpose, left: AD_SECONDS });
+  }, []);
+
+  useEffect(() => {
+    if (!ad) return;
+    if (ad.left <= 0) {
+      const purpose = ad.purpose;
+      setAd(null);
+      setAdCard(null);
+      const sim = simRef.current;
+      if (purpose === "revive") {
+        if (sim?.revive()) {
+          setOver(null);
+          setReviveUsed(true);
+        }
+      } else {
+        setOver(null);
+        setRunKey((k) => k + 1);
+      }
+      return;
+    }
+    const t = setTimeout(() => setAd((a) => (a ? { ...a, left: a.left - 1 } : a)), 1000);
+    return () => clearTimeout(t);
+  }, [ad]);
 
   useEffect(() => {
     AsyncStorage.getItem("kittydrop-coins")
@@ -98,26 +153,31 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
     const sim = simRef.current;
     if (!sim || sim.over) return;
     if (sim.shootTopCat()) {
+      feed({ type: "booster" });
       sfx.shoot();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       spendCoins(BOOST_SHOOT_COST);
     }
-  }, [spendCoins]);
+  }, [spendCoins, feed]);
 
   const raiseBooster = useCallback(() => {
     const sim = simRef.current;
     if (!sim || sim.over || sim.cupLift >= MAX_CUP_LIFT) return;
     if (sim.raiseCup()) {
+      feed({ type: "booster" });
       sfx.raiseCup();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       spendCoins(BOOST_RAISE_COST);
     }
-  }, [spendCoins]);
+  }, [spendCoins, feed]);
 
   /* ------------------------------------------------------- sim + render loop */
 
   const handleMerge = useCallback((e: MergeEvent) => {
     earnCoins(e.coins);
+    feed({ type: "merge", count: 1 });
+    if (e.combo > 1) feed({ type: "combo", value: e.combo });
+    if (e.newTier !== null) feed({ type: "tier", value: e.newTier });
     if (e.mega) {
       sfx.fanfare();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -137,7 +197,7 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
         color: e.combo >= 5 ? "#ff3d6e" : e.combo >= 3 ? "#8b5cf6" : "#ff8fb0",
       });
     }
-  }, [earnCoins]);
+  }, [earnCoins, feed]);
 
   useEffect(() => {
     setOver(null);
@@ -148,17 +208,29 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
     setDiscover(null);
     setUnlocked(new Set([0, 1, 2, 3, 4]));
 
+    setWin(false);
+    setReviveUsed(false);
+    dangerSeen.current = false;
     const sim = new KittySim({
       onScore: (s) => {
         setScore(s);
         setBump((b) => b + 1);
+        feed({ type: "runScore", value: s });
       },
       onNext: (c, n) => {
         setCurrent(c);
         setNext(n);
       },
       onMerge: handleMerge,
-      onDanger: setDanger,
+      onDanger: (d) => {
+        setDanger(d);
+        if (!d && dangerSeen.current && !sim.over) feed({ type: "survived" });
+        dangerSeen.current = d;
+      },
+      onWin: () => {
+        setWin(true);
+        feed({ type: "win", levelId: level.id });
+      },
       onGameOver: (s, biggest) => {
         sfx.sad();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -171,7 +243,7 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
         setDiscover(tier);
         setTimeout(() => setDiscover((d) => (d === tier ? null : d)), 1800);
       },
-    });
+    }, level);
     simRef.current = sim;
 
     void nativeSprites.warm();
@@ -457,13 +529,83 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
               <Text style={styles.discoverName}>{CATS[over.biggest].name}</Text>
             </View>
           </View>
-          <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={restart}>
-            <Text style={styles.btnTextWhite}>🐱 Play Again</Text>
-          </Pressable>
+          {!reviveUsed && (
+            <>
+              <Pressable style={[styles.btn, { backgroundColor: "#57c6ff" }]} onPress={() => startAd("revive")}>
+                <Text style={styles.btnTextWhite}>📺 Watch ad → revive & continue</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, { backgroundColor: "#ffd76a" }, coins < REVIVE_COST && styles.boostOff]}
+                disabled={coins < REVIVE_COST}
+                onPress={() => {
+                  const sim = simRef.current;
+                  if (sim?.revive()) {
+                    spendCoins(REVIVE_COST);
+                    setOver(null);
+                    setReviveUsed(true);
+                  }
+                }}
+              >
+                <Text style={styles.btnTextDark}>🪙 {REVIVE_COST} → revive & continue</Text>
+              </Pressable>
+            </>
+          )}
+          {level.retryNeedsAd ? (
+            <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={() => startAd("retry")}>
+              <Text style={styles.btnTextWhite}>📺 Watch ad → retry {level.name}</Text>
+            </Pressable>
+          ) : (
+            <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={restart}>
+              <Text style={styles.btnTextWhite}>🐱 Play Again</Text>
+            </Pressable>
+          )}
           <Pressable style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={onExit}>
             <Text style={styles.btnTextDark}>🏠 Menu</Text>
           </Pressable>
         </Modal>
+      )}
+
+      {/* level complete → choose next world */}
+      {win && !over && (
+        <Modal>
+          <Text style={styles.modalEmoji}>🎉</Text>
+          <Text style={styles.modalTitle}>LEVEL COMPLETE!</Text>
+          <Text style={styles.modalSub}>
+            {level.emoji} {level.name} cleared — pick your next world:
+          </Text>
+          {LEVELS.filter((l) => l.id !== "meadow").map((l) => (
+            <Pressable key={l.id} style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={() => onSelectLevel(l.id)}>
+              <Text style={styles.btnTextDark}>
+                {l.emoji} {l.name} — {l.desc}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable style={[styles.btn, { backgroundColor: "#ffeaf2" }]} onPress={() => setWin(false)}>
+            <Text style={styles.btnTextDark}>keep playing here</Text>
+          </Pressable>
+        </Modal>
+      )}
+
+      {/* simulated sponsor reel */}
+      {ad && adCard && (
+        <View style={styles.adWrap}>
+          <View style={styles.adCard}>
+            <Text style={styles.adLabel}>SPONSOR REEL · AD</Text>
+            <Text style={styles.adEmoji}>{adCard.emoji}</Text>
+            <Text style={styles.adTitle}>{adCard.title}</Text>
+            <Text style={styles.adTag}>{adCard.tagline}</Text>
+            <Text style={styles.adLabel}>reward in {ad.left}s…</Text>
+          </View>
+        </View>
+      )}
+
+      {/* mission toast */}
+      {toast && (
+        <View style={styles.toastWrap} pointerEvents="none">
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toast}</Text>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -501,6 +643,15 @@ const styles = StyleSheet.create({
   boostBtn: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 2, borderColor: "#fff" },
   boostCost: { fontSize: 9, fontWeight: "800", color: "#28577a", marginLeft: 2 },
   boostOff: { opacity: 0.4 },
+  adWrap: { position: "absolute", inset: 0, backgroundColor: "rgba(43,34,51,0.85)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 60 },
+  adCard: { width: "100%", maxWidth: 340, backgroundColor: "#fff", borderRadius: 28, borderWidth: 4, borderColor: "#fff", padding: 24, alignItems: "center" },
+  adLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 3, color: "#b0a8b8", marginTop: 8 },
+  adEmoji: { fontSize: 56, marginVertical: 12 },
+  adTitle: { fontSize: 22, fontWeight: "800", color: "#4a3b55" },
+  adTag: { fontSize: 13, color: "#7a6b88", marginTop: 4 },
+  toastWrap: { position: "absolute", top: 90, alignSelf: "center", zIndex: 70 },
+  toast: { backgroundColor: "#7ed08a", borderRadius: 18, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 16, paddingVertical: 8 },
+  toastText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   bestChip: { backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   bestChipText: { color: "#a0506e", fontSize: 11, fontWeight: "700" },
   nextBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#a97c6a", borderRadius: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 8, paddingVertical: 4 },
