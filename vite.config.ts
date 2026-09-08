@@ -17,6 +17,10 @@ export default defineConfig({
     // Dev-only setting; `vite build` output is unaffected.
     allowedHosts: true,
   },
+  preview: {
+    // same reason for `vite preview` (the phone-testable production build)
+    allowedHosts: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
