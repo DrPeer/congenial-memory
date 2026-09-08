@@ -1,6 +1,7 @@
+import type { Ctx2D } from "./ctx2d";
 import type { CatDef } from "./cats";
 
-function fluffPath(ctx: CanvasRenderingContext2D, r: number) {
+function fluffPath(ctx: Ctx2D, r: number) {
   const bumps = Math.max(14, Math.min(44, Math.round(r / 3.2)));
   const amp = r * 0.055;
   ctx.beginPath();
@@ -21,7 +22,7 @@ function fluffPath(ctx: CanvasRenderingContext2D, r: number) {
 }
 
 function drawEar(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   r: number,
   side: -1 | 1,
   def: CatDef,
@@ -54,7 +55,7 @@ function drawEar(
   ctx.restore();
 }
 
-function eyeOpen(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, scale = 1) {
+function eyeOpen(ctx: Ctx2D, x: number, y: number, r: number, scale = 1) {
   ctx.fillStyle = "#2b2233";
   ctx.beginPath();
   ctx.ellipse(x, y, r * 0.11 * scale, r * 0.14 * scale, 0, 0, Math.PI * 2);
@@ -68,7 +69,7 @@ function eyeOpen(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
   ctx.fill();
 }
 
-function eyeHappy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeHappy(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.strokeStyle = "#2b2233";
   ctx.lineWidth = Math.max(1.2, r * 0.05);
   ctx.lineCap = "round";
@@ -77,7 +78,7 @@ function eyeHappy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
   ctx.stroke();
 }
 
-function eyeSleepy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeSleepy(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.strokeStyle = "#2b2233";
   ctx.lineWidth = Math.max(1.2, r * 0.05);
   ctx.lineCap = "round";
@@ -86,7 +87,7 @@ function eyeSleepy(ctx: CanvasRenderingContext2D, x: number, y: number, r: numbe
   ctx.stroke();
 }
 
-function eyeSmug(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, def: CatDef) {
+function eyeSmug(ctx: Ctx2D, x: number, y: number, r: number, def: CatDef) {
   eyeOpen(ctx, x, y, r);
   ctx.fillStyle = def.body;
   ctx.beginPath();
@@ -100,7 +101,7 @@ function eyeSmug(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
   ctx.stroke();
 }
 
-function eyeHeart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeHeart(ctx: Ctx2D, x: number, y: number, r: number) {
   const s = r * 0.13;
   ctx.fillStyle = "#ff5c8a";
   ctx.beginPath();
@@ -110,7 +111,7 @@ function eyeHeart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
   ctx.fill();
 }
 
-function drawFace(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+function drawFace(ctx: Ctx2D, r: number, def: CatDef) {
   const ey = -r * 0.08;
   const ex = r * 0.3;
   const exp = def.expression;
@@ -207,7 +208,7 @@ function drawFace(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
   }
 }
 
-function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+function drawAccessory(ctx: Ctx2D, r: number, def: CatDef) {
   switch (def.accessory) {
     case "bow": {
       ctx.save();
@@ -347,7 +348,7 @@ function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
  * sx/sy allow squash & stretch, angle rotates the whole cat.
  */
 export function drawCat(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   r: number,
