@@ -66,6 +66,11 @@ Keep source sheets in `mobile/assets/_*-source.png` (underscore = raw source, no
   (native WAVs), then `node scripts/gen-sounds.mjs` + add the require to
   `mobile/src/native/sounds.ts`.
 - Haptics: native only, in `GameScreen` merge/drop handlers.
+- Shop items: edit the shared catalog in `src/game/shop.ts` (themes must be full
+  `Theme`s; cup skins are paint overrides; trails are `SpriteId[]`), then mirror UI
+  in `src/components/Shop.tsx` + `mobile/src/native/ShopModal.tsx`. Real-money flow
+  goes through `src/game/purchases.ts` (`setPurchaseProvider`) — never hardcode a
+  billing SDK into hosts or the catalog.
 - Never reach across: web must not import from `mobile/`; native must not import web
   hosts (`engine.ts`, `sound.ts`). Shared code = `src/game/*` + `src/plugins/*` only.
 

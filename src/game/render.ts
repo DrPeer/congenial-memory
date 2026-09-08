@@ -9,7 +9,7 @@
 import { CATS } from "./cats";
 import type { Ctx2D } from "./ctx2d";
 import { drawCat } from "./drawCat";
-import { DECOR_SPRITES, GLYPH_SPRITE, type SpriteBank } from "./sprites";
+import { DECOR_SPRITES, GLYPH_SPRITE, type SpriteBank, type SpriteId as SpriteIdLike } from "./sprites";
 import {
   CUP_FLOOR,
   CUP_LEFT_TOP,
@@ -60,9 +60,10 @@ function drawSpriteOr(
   size: number,
   rot: number,
   fallbackGlyph: string,
+  spriteOverride?: SpriteIdLike,
 ) {
   const bank = opts.sprites ?? null;
-  const spriteId = GLYPH_SPRITE[id] ?? GLYPH_SPRITE[fallbackGlyph];
+  const spriteId = spriteOverride ?? GLYPH_SPRITE[id] ?? GLYPH_SPRITE[fallbackGlyph];
   const img = bank && spriteId ? (bank.get(spriteId) as unknown) : null;
   if (img) {
     ctx.save();
@@ -328,7 +329,7 @@ function drawParticles(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts)
     p.vy += 0.004 * 16;
     p.rot += p.vr * 16;
     ctx.globalAlpha = 1 - k;
-    const drawn = drawSpriteOr(ctx, opts, p.glyph, p.x, p.y, p.size * 1.7, p.rot, p.glyph);
+    const drawn = drawSpriteOr(ctx, opts, p.glyph, p.x, p.y, p.size * 1.7, p.rot, p.glyph, p.sprite);
     if (!drawn) {
       ctx.font = `${p.size}px serif`;
       ctx.save();

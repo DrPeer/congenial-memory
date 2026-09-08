@@ -6,6 +6,7 @@ import { MissionStore, type MissionEvent } from "../game/missions";
 import { BOOST_RAISE_COST, BOOST_SHOOT_COST, MAX_CUP_LIFT } from "../game/sim";
 import { KittyEngine, type MergeEvent } from "../game/engine";
 import { sfx } from "../game/sound";
+import { findCupSkin, findTrail } from "../game/shop";
 import { LEVEL_ICON } from "../game/sprites";
 import { activeTheme } from "../plugins/registry";
 import CatIcon from "./CatIcon";
@@ -17,6 +18,7 @@ interface Props {
   onBest: (b: number) => void;
   level: LevelDef;
   onSelectLevel: (id: string) => void;
+  equip: { cup?: string; trail?: string };
 }
 
 const MISSIONS_KEY = "kittydrop-missions";
@@ -45,7 +47,7 @@ const saveCoins = (v: number) => {
   }
 };
 
-export default function Game({ onExit, best, onBest, level, onSelectLevel }: Props) {
+export default function Game({ onExit, best, onBest, level, onSelectLevel, equip }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<KittyEngine | null>(null);
@@ -219,6 +221,8 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel }: Pro
       },
       level,
     );
+    eng.setLook({ cupSkin: findCupSkin(equip.cup), trail: findTrail(equip.trail) });
+    if (equip.cup || equip.trail) feed({ type: "equipSkin" });
     engineRef.current = eng;
 
     const doResize = () => {
@@ -235,7 +239,7 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel }: Pro
       eng.destroy();
       engineRef.current = null;
     };
-  }, [runKey, handleMerge, onBest, feed, level]);
+  }, [runKey, handleMerge, onBest, feed, level, equip]);
 
   // banner auto clear
   useEffect(() => {

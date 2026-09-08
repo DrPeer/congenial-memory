@@ -12,6 +12,7 @@
 import Matter from "matter-js";
 import { CATS, MAX_TIER, MEGA_MERGE_BONUS, randomDropTier } from "./cats";
 import { LEVELS, type LevelDef } from "./levels";
+import type { SpriteId } from "./sprites";
 
 const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 
@@ -68,6 +69,8 @@ export interface Particle {
   size: number;
   rot: number;
   vr: number;
+  /** equipped trail overrides the glyph->sprite mapping */
+  sprite?: SpriteId;
 }
 
 export interface MergeEvent {
@@ -324,7 +327,7 @@ export class KittySim {
       if (tier >= MAX_TIER) {
         mega = true;
         points = MEGA_MERGE_BONUS * this.combo;
-        this.burst(mx, my, 40, ["👑", "✨", "⭐", "💖"]);
+        this.burst(mx, my, 40, ["👑", "✨", "⭐", "💖"], this.fxMega);
         this.addPopup(mx, my - 40, "MEGA MEOW!", "#ff3d6e", 34, 1800);
       } else {
         newTier = tier + 1;
@@ -339,7 +342,7 @@ export class KittySim {
           this.won = true;
           this.cb.onWin?.();
         }
-        this.burst(mx, my, 6 + newTier * 2, ["💕", "✨", "🐾"]);
+        this.burst(mx, my, 6 + newTier * 2, ["💕", "✨", "🐾"], this.fxMerge);
         // nudge neighbours slightly (soft poof)
         for (const body of Composite.allBodies(this.engine.world)) {
           if (body.label !== "cat" || body.id === nb.id) continue;
@@ -369,7 +372,17 @@ export class KittySim {
     this.popups.push({ x, y, text, color, size, t0: performance.now(), life, vy: -0.045 });
   }
 
-  burst(x: number, y: number, n: number, glyphs: string[]) {
+  /** equipped merge-trail sprites (cosmetic shop) */
+  private fxMerge: SpriteId[] | null = null;
+  private fxMega: SpriteId[] | null = null;
+
+  setFx(trailSprites?: SpriteId[] | null) {
+    this.fxMerge = trailSprites?.length ? trailSprites : null;
+    this.fxMega = trailSprites?.length ? [...trailSprites, "star"] : null;
+  }
+
+  burst(x: number, y: number, n: number, glyphs: string[], sprites?: SpriteId[] | null) {
+    const pool = sprites ?? null;
     const now = performance.now();
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -385,6 +398,7 @@ export class KittySim {
         size: 10 + Math.random() * 10,
         rot: Math.random() * 6,
         vr: (Math.random() - 0.5) * 0.01,
+        sprite: pool ? pool[Math.floor(Math.random() * pool.length)] : undefined,
       });
     }
   }

@@ -95,6 +95,24 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 - Headless proof frames, including the countdown: `node scripts/screenshot-game.mjs`
   → `screenshots/frame-*.png`.
 
+## Shop — skins for coins, coins for money
+
+- **SHOP** button on the menu (web + native) opens the cat-coin store:
+  - **Coin packs** — top up with real money: Pouch 500🪙/$0.99, Bag 1,200🪙/$1.99,
+    Chest 3,000🪙/$4.99. Today checkout runs in **SANDBOX TEST MODE** (no real
+    charge) through a swappable provider seam (`src/game/purchases.ts`): plug in
+    RevenueCat/expo-iap for the stores or Stripe for web without touching the catalog.
+  - **Theme skins** — Neon Night (200🪙), Candy Pop / Ocean Dream / Sunset Peach (150🪙).
+    Owned themes join the normal theme chips everywhere.
+  - **Baskets** — Wicker (120🪙), Golden (250🪙), Crystal (200🪙): repaints the cup.
+  - **Merge trails** — Love (100🪙), Royal (150🪙), Ocean (100🪙): restyle merge bursts.
+- Coins come free from **missions & merges**, or paid via packs — spend only happens
+  in the shop; the wallet key stays `kittydrop-coins`.
+- Ownership/equipment persist in `kittydrop-owned` + `kittydrop-equip` (web localStorage,
+  native AsyncStorage). Catalog lives in `src/game/shop.ts` — shared by both hosts.
+- Two new missions feed the loop: *Score 5,000 in one run* (+40🪙) and
+  *Equip a custom skin from the shop* (+10🪙).
+
 ## Themes & plugins (safe playground for humans & AI)
 
 - Every skin is a **plugin**: `src/plugins/<id>/` exports a `Theme` and registers with

@@ -12,6 +12,7 @@ import { sfx } from "./sound";
 import { webSprites } from "./spritesWeb";
 import { KittySim, WORLD_H, WORLD_W, type MergeEvent, type SimCallbacks } from "./sim";
 import type { LevelDef } from "./levels";
+import type { CupSkin, Trail } from "./shop";
 import { activeTheme } from "../plugins/registry";
 
 export type EngineCallbacks = SimCallbacks;
@@ -88,6 +89,13 @@ export class KittyEngine {
   get raiseLeft() {
     return this.sim.raiseLeft;
   }
+
+  /** equipped cosmetics: basket paint + merge trail */
+  setLook(look: { cupSkin?: CupSkin; trail?: Trail }) {
+    this.look = look;
+    this.sim.setFx(look.trail?.sprites ?? null);
+  }
+  private look: { cupSkin?: CupSkin; trail?: Trail } = {};
   get coinsEarned() {
     return this.sim.coinsEarned;
   }
@@ -187,7 +195,9 @@ export class KittyEngine {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, offX * dpr, offY * dpr);
-    renderScene(ctx, this.sim, now, { theme: activeTheme(), sprites: webSprites });
+    const base = activeTheme();
+    const theme = this.look.cupSkin ? { ...base, ...this.look.cupSkin.paint } : base;
+    renderScene(ctx, this.sim, now, { theme, sprites: webSprites });
   }
 
   /* ---------- passthroughs kept for compatibility ---------- */

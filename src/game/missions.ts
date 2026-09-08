@@ -21,6 +21,8 @@ export const MISSIONS: MissionDef[] = [
   { id: "win_meadow", text: "Complete Sweet Meadow", goal: 1, reward: 40 },
   { id: "win_beach", text: "Complete Sunny Shore", goal: 1, reward: 60 },
   { id: "win_hills", text: "Complete Clover Hills", goal: 1, reward: 80 },
+  { id: "score5000", text: "Score 5,000 in one run", goal: 5000, reward: 40 },
+  { id: "skin1", text: "Equip a custom skin from the shop", goal: 1, reward: 10 },
 ];
 
 export type MissionEvent =
@@ -30,7 +32,8 @@ export type MissionEvent =
   | { type: "runScore"; value: number }
   | { type: "booster" }
   | { type: "survived" }
-  | { type: "win"; levelId: string };
+  | { type: "win"; levelId: string }
+  | { type: "equipSkin" };
 
 export interface MissionState {
   progress: Record<string, number>;
@@ -72,6 +75,10 @@ export class MissionStore {
         break;
       case "runScore":
         add("score1500", ev.value);
+        add("score5000", ev.value);
+        break;
+      case "equipSkin":
+        inc("skin1");
         break;
       case "booster":
         inc("booster1");

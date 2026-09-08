@@ -38,19 +38,22 @@ src/game/            THE shared core (web + native run this exact code)
   levels.ts          3 worlds: theme + obstacles + cup inset + win tier
   missions.ts        MissionStore: shared meta goals + coin rewards
   ads.ts             ad-slot seam (simulated sponsor reel today)
+  shop.ts            shop catalog: coin packs, theme/basket/trail skins, Equip type
+  purchases.ts       real-money seam: PurchaseProvider + SimulatedCheckout (test mode)
   theme.ts           Theme data shape (colors, alphas) — cosmetics only
   cats.ts sound.ts   tier defs / web synth SFX
 src/assets/sprites/  generated sticker PNGs (128px) + pattern.png (512 tile)
 src/plugins/         THEME PLUGINS: sweet-berry (default), minty-milk + registry.ts
-src/App.tsx          web menu (theme chips, best score, hero cat)
-src/components/      web Game.tsx (HUD/modals), CatIcon.tsx
+src/App.tsx          web menu (theme chips, best score, hero cat, wallet + shop host)
+src/components/      web Game.tsx (HUD/modals), Shop.tsx, Icon.tsx, CatIcon.tsx
 mobile/              Expo app (its own package.json/node_modules!)
   App.tsx            menu/game switch, AsyncStorage best+theme, portrait lock
   src/native/
     missionsNative.ts AsyncStorage-backed MissionStore singleton
     skiaCtx.ts       Skia adapter implementing Ctx2D (the ONLY native draw code)
     GameScreen.tsx   rAF loop → PictureRecorder → <Picture>, touch input, haptics
-    MenuScreen.tsx   native menu + theme chips
+    MenuScreen.tsx   native menu + theme chips + SHOP button
+    ShopModal.tsx    native shop (RN twin of web Shop.tsx)
     spritesNative.ts expo-asset → bytes → SkImage bank
     sounds.ts        31 WAV pools (expo-audio); catPicture.ts Skia cat portraits
   assets/sounds/     generated WAVs (scripts/gen-sounds.mjs)
@@ -123,7 +126,9 @@ First time on a PC: `npm run mobile:setup` (installs root + mobile deps).
   https://github.com/DrPeer/congenial-memory/pull/1
 - Key commits: native rewrite (`ba23ad6`), themes+plugins+stickers (`0a94e9b`),
   Pages publish + phone-test docs (later commits).
-- Verified green: `npm run check`, Metro android+ios bundles, web single-file build (~752 KB).
+- Verified green: `npm run check`, Metro android+ios bundles, web single-file build.
+- Shop live (coins→skins, money→coins via test-mode checkout); real store billing
+  awaits a provider hookup (RevenueCat/expo-iap native, Stripe web) — seam is ready.
 - Headless frames for both themes: `screenshots/frame-*.png` (regenerate anytime).
 
 ## 7. Ideas parked for later

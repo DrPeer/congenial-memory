@@ -6,12 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { CATS } from "../../../src/game/cats";
 import { LEVELS } from "../../../src/game/levels";
 import { LEVEL_ICON } from "../../../src/game/sprites";
 import { missionStore } from "./missionsNative";
+import type { Equip } from "../../../src/game/shop";
+import ShopModal from "./ShopModal";
 import { activeTheme, getThemes } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
 import Icon, { ICON_SRC } from "./Icon";
@@ -25,11 +25,18 @@ interface Props {
   unlocked: string[];
   onSelectLevel: (id: string) => void;
   onPlay: () => void;
+  coins: number;
+  spend: (n: number) => boolean;
+  grant: (n: number) => void;
+  owned: string[];
+  setOwned: (ids: string[]) => void;
+  equip: Equip;
+  setEquip: (e: Equip) => void;
 }
 
 const DECO = ["pawprint", "yarn", "heart", "fish", "pawprint", "sparkle", "pawprint", "heart"];
 
-export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, onSelectLevel, onPlay }: Props) {
+export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, onSelectLevel, onPlay, coins, spend, grant, owned, setOwned, equip, setEquip }: Props) {
   const insets = useSafeAreaInsets();
   const [heroTier, setHeroTier] = useState(6);
   const float = useRef(new Animated.Value(0)).current;
@@ -50,12 +57,7 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
     return () => loop.stop();
   }, [float]);
 
-  const [coins, setCoins] = useState(0);
-  useEffect(() => {
-    AsyncStorage.getItem("kittydrop-coins")
-      .then((v) => setCoins(Number(v || 0) || 0))
-      .catch(() => {});
-  }, []);
+  const [shopOpen, setShopOpen] = useState(false);
 
   const theme = activeTheme();
   return (
@@ -204,6 +206,14 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
             </View>
           </View>
         )}
+        <Pressable style={styles.shopBtn} onPress={() => { sfx.pop(0); setShopOpen(true); }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon id="basket" size={18} />
+            <Text style={styles.shopText}> SHOP · </Text>
+            <Icon id="coin" size={14} />
+            <Text style={styles.shopText}> {coins.toLocaleString()}</Text>
+          </View>
+        </Pressable>
         <Pressable
           style={styles.playBtn}
           onPress={() => {
@@ -218,6 +228,20 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
           </View>
         </Pressable>
       </View>
+
+      <ShopModal
+        visible={shopOpen}
+        onClose={() => setShopOpen(false)}
+        coins={coins}
+        spend={spend}
+        grant={grant}
+        owned={owned}
+        setOwned={setOwned}
+        equip={equip}
+        setEquip={setEquip}
+        themeId={themeId}
+        pickTheme={onTheme}
+      />
     </View>
   );
 }
@@ -253,6 +277,8 @@ const styles = StyleSheet.create({
   themeChipTextActive: { color: "#fff" },
   bestBadge: { backgroundColor: "#ffd88a", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 4 },
   bestBadgeText: { fontSize: 14, fontWeight: "700", color: "#7a3b55" },
+  shopBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#ffd76a", borderRadius: 999, paddingHorizontal: 22, paddingVertical: 12, alignSelf: "center", marginBottom: 10, borderWidth: 3, borderColor: "#fff", shadowColor: "#7a3b55", shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  shopText: { fontSize: 15, fontWeight: "800", color: "#7a5210" },
   playBtn: {
     width: "100%",
     borderRadius: 999,

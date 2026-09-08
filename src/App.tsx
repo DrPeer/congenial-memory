@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CatIcon from "./components/CatIcon";
 import Game from "./components/Game";
 import { CATS } from "./game/cats";
 import { sfx } from "./game/sound";
 import { LEVELS, getLevel } from "./game/levels";
+import { EQUIP_KEY, OWNED_KEY, type Equip } from "./game/shop";
+import { setOwnedSkins } from "./plugins/registry";
 import { MissionStore } from "./game/missions";
 import { LEVEL_ICON } from "./game/sprites";
 import { activeTheme, getThemes, setActiveThemeId } from "./plugins/registry";
 import Icon from "./components/Icon";
+import Shop from "./components/Shop";
 
 const LEVEL_KEY = "kittydrop-level";
 const LEVELS_KEY = "kittydrop-levels";
@@ -33,6 +36,22 @@ export default function App() {
       return "meadow";
     }
   });
+  const [coins, setCoins] = useState<number>(() => Number(localStorage.getItem("kittydrop-coins") || 0) || 0);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [owned, setOwned] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(OWNED_KEY) || "null") ?? [];
+    } catch {
+      return [];
+    }
+  });
+  const [equip, setEquip] = useState<Equip>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(EQUIP_KEY) || "null") ?? {};
+    } catch {
+      return {};
+    }
+  });
   const [unlocked, setUnlocked] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem(LEVELS_KEY) || "null") ?? ["meadow"];
@@ -51,6 +70,52 @@ export default function App() {
       return [];
     }
   })();
+
+  // keep the theme registry aware of owned shop skins
+  useEffect(() => {
+    setOwnedSkins(owned);
+  }, [owned]);
+
+  const updateOwned = useCallback((ids: string[]) => {
+    setOwned(ids);
+    try {
+      localStorage.setItem(OWNED_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const updateEquip = useCallback((e: Equip) => {
+    setEquip(e);
+    try {
+      localStorage.setItem(EQUIP_KEY, JSON.stringify(e));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // ref mirror so spend() can answer synchronously (state updaters run late)
+  const coinsRef = useRef(coins);
+  coinsRef.current = coins;
+  const writeCoins = useCallback((v: number) => {
+    coinsRef.current = v;
+    localStorage.setItem("kittydrop-coins", String(v));
+    setCoins(v);
+  }, []);
+  const spendCoins = useCallback(
+    (n: number) => {
+      if (coinsRef.current < n) return false;
+      writeCoins(coinsRef.current - n);
+      return true;
+    },
+    [writeCoins],
+  );
+  const grantCoins = useCallback(
+    (n: number) => {
+      writeCoins(coinsRef.current + n);
+    },
+    [writeCoins],
+  );
 
   const selectLevel = useCallback((id: string) => {
     setLevelId(id);
@@ -72,6 +137,7 @@ export default function App() {
   }, []);
   const [themeId, setThemeId] = useState<string>(() => {
     try {
+      setOwnedSkins(owned); // shop themes must be registered before validation
       const saved = localStorage.getItem(THEME_KEY);
       if (saved) setActiveThemeId(saved);
     } catch {
@@ -114,11 +180,15 @@ export default function App() {
     return (
       <div className="h-full w-full">
         <Game
-          onExit={() => setScreen("menu")}
+          onExit={() => {
+            setScreen("menu");
+            setCoins(Number(localStorage.getItem("kittydrop-coins") || 0) || 0);
+          }}
           best={best}
           onBest={onBest}
           level={getLevel(levelId)}
           onSelectLevel={selectLevel}
+          equip={equip}
         />
       </div>
     );
@@ -178,6 +248,12 @@ export default function App() {
 
       {/* buttons */}
       <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3">
+        <button
+          onClick={() => setShopOpen(true)}
+          className="btn-cute flex items-center gap-2 bg-[#ffd76a] px-5 py-2 text-sm font-bold text-[#7a5210]"
+        >
+          <Icon id="basket" size={18} /> SHOP · <Icon id="coin" size={14} /> {coins.toLocaleString()}
+        </button>
         <div className="flex flex-wrap justify-center gap-2">
           {LEVELS.map((l) => {
             const open = unlocked.includes(l.id);
@@ -247,6 +323,19 @@ export default function App() {
           <span className="inline-flex items-center gap-2">PLAY <Icon id="pawprint" size={22} /></span>
         </button>
       </div>
+      <Shop
+        open={shopOpen}
+        onClose={() => setShopOpen(false)}
+        coins={coins}
+        spend={spendCoins}
+        grant={grantCoins}
+        owned={owned}
+        setOwned={updateOwned}
+        equip={equip}
+        setEquip={updateEquip}
+        themeId={themeId}
+        pickTheme={pickTheme}
+      />
     </div>
   );
 }

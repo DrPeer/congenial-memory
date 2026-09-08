@@ -16,7 +16,8 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { getLevel } from "../src/game/levels";
-import { activeTheme, setActiveThemeId } from "../src/plugins/registry";
+import { EQUIP_KEY, OWNED_KEY, type Equip } from "../src/game/shop";
+import { activeTheme, setActiveThemeId, setOwnedSkins } from "../src/plugins/registry";
 import { hydrateMissions } from "./src/native/missionsNative";
 
 const LEVEL_KEY = "kittydrop-level";
@@ -34,6 +35,9 @@ export default function App() {
   const [themeId, setThemeId] = useState(activeTheme().id);
   const [levelId, setLevelId] = useState("meadow");
   const [unlocked, setUnlocked] = useState<string[]>(["meadow"]);
+  const [coins, setCoins] = useState(0);
+  const [owned, setOwned] = useState<string[]>([]);
+  const [equip, setEquip] = useState<Equip>({});
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
@@ -43,6 +47,13 @@ export default function App() {
     (async () => {
       try {
         setBest(Number((await AsyncStorage.getItem(BEST_KEY)) || 0));
+        setCoins(Number((await AsyncStorage.getItem("kittydrop-coins")) || 0) || 0);
+        const savedOwned = await AsyncStorage.getItem(OWNED_KEY);
+        const ownedIds = savedOwned ? (JSON.parse(savedOwned) as string[]) : [];
+        setOwned(ownedIds);
+        setOwnedSkins(ownedIds); // before theme restore so shop themes validate
+        const savedEquip = await AsyncStorage.getItem(EQUIP_KEY);
+        if (savedEquip) setEquip(JSON.parse(savedEquip) as Equip);
         const savedLevel = await AsyncStorage.getItem(LEVEL_KEY);
         if (savedLevel) setLevelId(savedLevel);
         const savedLevels = await AsyncStorage.getItem(LEVELS_KEY);
@@ -76,6 +87,34 @@ export default function App() {
     AsyncStorage.setItem(THEME_KEY, id).catch(() => {});
   }, []);
 
+  const writeCoins = useCallback((v: number) => {
+    setCoins(v);
+    AsyncStorage.setItem("kittydrop-coins", String(v)).catch(() => {});
+  }, []);
+  const spendCoins = useCallback(
+    (n: number) => {
+      if (coins < n) return false;
+      writeCoins(coins - n);
+      return true;
+    },
+    [coins, writeCoins],
+  );
+  const grantCoins = useCallback(
+    (n: number) => {
+      writeCoins(coins + n);
+    },
+    [coins, writeCoins],
+  );
+  const updateOwned = useCallback((ids: string[]) => {
+    setOwned(ids);
+    setOwnedSkins(ids);
+    AsyncStorage.setItem(OWNED_KEY, JSON.stringify(ids)).catch(() => {});
+  }, []);
+  const updateEquip = useCallback((e: Equip) => {
+    setEquip(e);
+    AsyncStorage.setItem(EQUIP_KEY, JSON.stringify(e)).catch(() => {});
+  }, []);
+
   const onBest = useCallback((b: number) => {
     setBest(b);
     AsyncStorage.setItem(BEST_KEY, String(b)).catch(() => {});
@@ -89,9 +128,16 @@ export default function App() {
           <GameScreen
             best={best}
             onBest={onBest}
-            onExit={() => setScreen("menu")}
+            onExit={() => {
+              setScreen("menu");
+              // GameScreen owns the wallet while playing — re-sync on return
+              AsyncStorage.getItem("kittydrop-coins")
+                .then((v) => setCoins(Number(v || 0) || 0))
+                .catch(() => {});
+            }}
             level={getLevel(levelId)}
             onSelectLevel={onSelectLevel}
+            equip={equip}
           />
         ) : (
           <MenuScreen
@@ -102,6 +148,13 @@ export default function App() {
             unlocked={unlocked}
             onSelectLevel={onSelectLevel}
             onPlay={() => setScreen("game")}
+            coins={coins}
+            spend={spendCoins}
+            grant={grantCoins}
+            owned={owned}
+            setOwned={updateOwned}
+            equip={equip}
+            setEquip={updateEquip}
           />
         )}
       </View>

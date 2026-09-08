@@ -33,6 +33,7 @@ import { catPicture } from "./catPicture";
 import Icon from "./Icon";
 import { missionStore } from "./missionsNative";
 import { nativeSprites } from "./spritesNative";
+import { findCupSkin, findTrail } from "../../../src/game/shop";
 import { sfx } from "./sounds";
 import { SkiaCtx2D } from "./skiaCtx";
 
@@ -42,6 +43,7 @@ interface Props {
   onExit: () => void;
   level: LevelDef;
   onSelectLevel: (id: string) => void;
+  equip: { cup?: string; trail?: string };
 }
 
 const REVIVE_COST = 30;
@@ -55,11 +57,17 @@ interface Banner {
 
 const BG = "#ffd6e7";
 
-export default function GameScreen({ best, onBest, onExit, level, onSelectLevel }: Props) {
+export default function GameScreen({ best, onBest, onExit, level, onSelectLevel, equip }: Props) {
   const insets = useSafeAreaInsets();
   const simRef = useRef<KittySim | null>(null);
   const viewRef = useRef({ w: 0, h: 0, scale: 1, offX: 0, offY: 0 });
   const dragging = useRef(false);
+  const equipRef = useRef(equip);
+  equipRef.current = equip;
+  useEffect(() => {
+    if (equip.cup || equip.trail) feed({ type: "equipSkin" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equip]);
   const bannerId = useRef(0);
   const bestRef = useRef(best);
   bestRef.current = best;
@@ -251,6 +259,7 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
         setTimeout(() => setDiscover((d) => (d === tier ? null : d)), 1800);
       },
     }, level);
+    sim.setFx(findTrail(equip.trail)?.sprites ?? null);
     simRef.current = sim;
 
     void nativeSprites.warm();
@@ -268,7 +277,10 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
         const ctx = new SkiaCtx2D(canvas);
         ctx.translate(offX, offY);
         ctx.scale(scale, scale);
-        renderScene(ctx, sim, t, { theme: activeTheme(), sprites: nativeSprites });
+        const base = activeTheme();
+        const cupSkin = findCupSkin(equipRef.current.cup);
+        const theme = cupSkin ? { ...base, ...cupSkin.paint } : base;
+        renderScene(ctx, sim, t, { theme, sprites: nativeSprites });
         setPicture(recorder.finishRecordingAsPicture());
       }
       raf = requestAnimationFrame(loop);
