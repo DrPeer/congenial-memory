@@ -1,13 +1,15 @@
 /**
  * renderScene — the whole Kitty Drop picture, drawn through the Ctx2D interface.
  *
- * Identical on web (DOM canvas) and native (Skia adapter): the caller applies the
- * clear + world transform, then this paints background → cup → cats → dropper →
- * dead line → particles → popups in world coordinates (400x640).
+ * Identical on web (DOM canvas) and native (Skia adapter). Visuals come from the
+ * active Theme + SpriteBank (custom generated stickers); when a sprite isn't
+ * loaded yet we fall back to the original emoji glyphs. Geometry, motion and
+ * timings are exactly the v1 game — themes repaint, they never re-rule.
  */
 import { CATS } from "./cats";
 import type { Ctx2D } from "./ctx2d";
 import { drawCat } from "./drawCat";
+import { DECOR_SPRITES, GLYPH_SPRITE, type SpriteBank } from "./sprites";
 import {
   CUP_FLOOR,
   CUP_LEFT_TOP,
@@ -20,10 +22,16 @@ import {
   easeOutBack,
   type KittySim,
 } from "./sim";
+import type { Theme } from "./theme";
 
-export function renderScene(ctx: Ctx2D, sim: KittySim, now: number) {
-  drawBackground(ctx, now);
-  drawCup(ctx);
+export interface RenderOpts {
+  theme?: Theme;
+  sprites?: SpriteBank | null;
+}
+
+export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts = {}) {
+  drawBackground(ctx, now, opts);
+  drawCup(ctx, opts);
 
   for (const c of sim.catViews()) {
     const def = CATS[c.tier];
@@ -36,28 +44,71 @@ export function renderScene(ctx: Ctx2D, sim: KittySim, now: number) {
 
   drawDropper(ctx, sim, now);
   drawDeadLine(ctx, sim, now);
-  drawParticles(ctx, sim, now);
+  drawParticles(ctx, sim, now, opts);
   drawPopups(ctx, sim, now);
 }
 
-function drawBackground(ctx: Ctx2D, now: number) {
+/* ------------------------------------------------------------ helpers */
+
+function drawSpriteOr(
+  ctx: Ctx2D,
+  opts: RenderOpts,
+  id: string,
+  x: number,
+  y: number,
+  size: number,
+  rot: number,
+  fallbackGlyph: string,
+) {
+  const bank = opts.sprites ?? null;
+  const spriteId = GLYPH_SPRITE[id] ?? GLYPH_SPRITE[fallbackGlyph];
+  const img = bank && spriteId ? (bank.get(spriteId) as unknown) : null;
+  if (img) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    ctx.restore();
+    return true;
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------ layers */
+
+function drawBackground(ctx: Ctx2D, now: number, opts: RenderOpts) {
+  const theme = opts.theme;
+  const bank = opts.sprites ?? null;
+
+  // backdrop texture
+  const pattern = bank?.get("pattern") ?? null;
+  if (pattern && theme) {
+    ctx.save();
+    ctx.globalAlpha = theme.patternAlpha;
+    ctx.drawImage(pattern, 0, 0, WORLD_W, WORLD_H);
+    ctx.restore();
+  }
+
+  // floating decor — same slots & drift as v1, sticker art instead of emoji
   ctx.save();
-  ctx.globalAlpha = 0.12;
+  ctx.globalAlpha = theme ? theme.decorAlpha : 0.12;
   ctx.font = "26px serif";
   ctx.textAlign = "center";
-  const items = ["🐾", "💗", "🐾", "🧶", "🐾", "💗", "🐟", "🐾"];
-  for (let i = 0; i < items.length; i++) {
+  const glyphs = ["🐾", "💗", "🐾", "🧶", "🐾", "💗", "🐟", "🐾"];
+  for (let i = 0; i < DECOR_SPRITES.length; i++) {
     const x = (i * 137 + 40) % WORLD_W;
     const y = ((i * 211 + now * 0.01) % (WORLD_H + 60)) - 30;
-    ctx.fillText(items[i], x, y);
+    const drawn = drawSpriteOr(ctx, opts, DECOR_SPRITES[i], x, y, 34, 0, glyphs[i]);
+    if (!drawn) ctx.fillText(glyphs[i], x, y);
   }
   ctx.restore();
 }
 
-function drawCup(ctx: Ctx2D) {
+function drawCup(ctx: Ctx2D, opts: RenderOpts) {
+  const t = opts.theme;
   // shadow
   ctx.save();
-  ctx.fillStyle = "rgba(180,90,120,0.18)";
+  ctx.fillStyle = t ? t.cupShadow : "rgba(180,90,120,0.18)";
   ctx.beginPath();
   ctx.ellipse(WORLD_W / 2, CUP_FLOOR + 10, 170, 14, 0, 0, Math.PI * 2);
   ctx.fill();
@@ -71,29 +122,32 @@ function drawCup(ctx: Ctx2D) {
   ctx.quadraticCurveTo(WORLD_W / 2, CUP_FLOOR + 22, 52 - 6, CUP_FLOOR + 8);
   ctx.closePath();
   const g = ctx.createLinearGradient(0, CUP_TOP, 0, CUP_FLOOR);
-  g.addColorStop(0, "#fff9fb");
-  g.addColorStop(1, "#ffeaf2");
+  g.addColorStop(0, t ? t.cupFillTop : "#fff9fb");
+  g.addColorStop(1, t ? t.cupFillBottom : "#ffeaf2");
   ctx.fillStyle = g;
   ctx.fill();
   ctx.lineWidth = 6;
-  ctx.strokeStyle = "#f2a5c2";
+  ctx.strokeStyle = t ? t.cupStroke : "#f2a5c2";
   ctx.lineJoin = "round";
   ctx.stroke();
 
   // inner rim
-  ctx.strokeStyle = "rgba(242,165,194,0.45)";
+  ctx.strokeStyle = t ? t.cupRim : "rgba(242,165,194,0.45)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(CUP_LEFT_TOP + 6, CUP_TOP + 14);
   ctx.lineTo(CUP_RIGHT_TOP - 6, CUP_TOP + 14);
   ctx.stroke();
 
-  // cute fish label
+  // fish motif (sticker when available)
   ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.font = "44px serif";
-  ctx.textAlign = "center";
-  ctx.fillText("🐟", WORLD_W / 2, CUP_FLOOR - 60);
+  ctx.globalAlpha = t ? t.fishAlpha : 0.25;
+  const drawn = drawSpriteOr(ctx, opts, "fish", WORLD_W / 2, CUP_FLOOR - 74, 60, 0, "");
+  if (!drawn) {
+    ctx.font = "44px serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🐟", WORLD_W / 2, CUP_FLOOR - 60);
+  }
   ctx.restore();
 }
 
@@ -163,7 +217,7 @@ function drawDropper(ctx: Ctx2D, sim: KittySim, now: number) {
   drawCat(ctx, x, DROP_Y + bob, r, def, 1.03, 0.97);
 }
 
-function drawParticles(ctx: Ctx2D, sim: KittySim, now: number) {
+function drawParticles(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts) {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -176,12 +230,15 @@ function drawParticles(ctx: Ctx2D, sim: KittySim, now: number) {
     p.vy += 0.004 * 16;
     p.rot += p.vr * 16;
     ctx.globalAlpha = 1 - k;
-    ctx.font = `${p.size}px serif`;
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot);
-    ctx.fillText(p.glyph, 0, 0);
-    ctx.restore();
+    const drawn = drawSpriteOr(ctx, opts, p.glyph, p.x, p.y, p.size * 1.7, p.rot, p.glyph);
+    if (!drawn) {
+      ctx.font = `${p.size}px serif`;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillText(p.glyph, 0, 0);
+      ctx.restore();
+    }
   }
   ctx.restore();
 }

@@ -15,7 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CATS, MAX_TIER, comboWord } from "../../../src/game/cats";
 import { renderScene } from "../../../src/game/render";
 import { KittySim, WORLD_H, WORLD_W, type MergeEvent } from "../../../src/game/sim";
+import { activeTheme } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
+import { nativeSprites } from "./spritesNative";
 import { sfx } from "./sounds";
 import { SkiaCtx2D } from "./skiaCtx";
 
@@ -117,6 +119,8 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
     });
     simRef.current = sim;
 
+    void nativeSprites.warm();
+
     let running = true;
     let raf = 0;
     sim.prime(performance.now());
@@ -130,7 +134,7 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
         const ctx = new SkiaCtx2D(canvas);
         ctx.translate(offX, offY);
         ctx.scale(scale, scale);
-        renderScene(ctx, sim, t);
+        renderScene(ctx, sim, t, { theme: activeTheme(), sprites: nativeSprites });
         setPicture(recorder.finishRecordingAsPicture());
       }
       raf = requestAnimationFrame(loop);
@@ -220,8 +224,9 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
 
   /* ------------------------------------------------------------------ view */
 
+  const theme = activeTheme();
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View style={[styles.root, { backgroundColor: theme.hostBg, paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
       {/* HUD */}
       <View style={styles.hud}>
         <View style={styles.hudLeft}>

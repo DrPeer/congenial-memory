@@ -16,7 +16,10 @@
     "mobile:typecheck": "npm --prefix mobile run typecheck",
     "mobile:ipa": "npm --prefix mobile run build:ios",
     "mobile:ipa:sim": "npm --prefix mobile run build:ios:sim",
-    "mobile:apk": "npm --prefix mobile run build:android"
+    "mobile:apk": "npm --prefix mobile run build:android",
+    "check": "node scripts/check.mjs",
+    "plugin:new": "node scripts/new-plugin.mjs",
+    "sprites:slice": "node scripts/slice-sprites.mjs"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",

@@ -15,15 +15,18 @@ import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { activeTheme, setActiveThemeId } from "../src/plugins/registry";
 import GameScreen from "./src/native/GameScreen";
 import MenuScreen from "./src/native/MenuScreen";
 
 const BEST_KEY = "kittydrop-best"; // same key as the web build
+const THEME_KEY = "kittydrop-theme";
 
 export default function App() {
   useKeepAwake();
   const [screen, setScreen] = useState<"menu" | "game">("menu");
   const [best, setBest] = useState(0);
+  const [themeId, setThemeId] = useState(activeTheme().id);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
@@ -33,10 +36,21 @@ export default function App() {
     (async () => {
       try {
         setBest(Number((await AsyncStorage.getItem(BEST_KEY)) || 0));
+        const savedTheme = await AsyncStorage.getItem(THEME_KEY);
+        if (savedTheme) {
+          setActiveThemeId(savedTheme);
+          setThemeId(savedTheme);
+        }
       } catch {
         /* first launch */
       }
     })();
+  }, []);
+
+  const onTheme = useCallback((id: string) => {
+    setActiveThemeId(id);
+    setThemeId(id);
+    AsyncStorage.setItem(THEME_KEY, id).catch(() => {});
   }, []);
 
   const onBest = useCallback((b: number) => {
@@ -51,7 +65,7 @@ export default function App() {
         {screen === "game" ? (
           <GameScreen best={best} onBest={onBest} onExit={() => setScreen("menu")} />
         ) : (
-          <MenuScreen best={best} onPlay={() => setScreen("game")} />
+          <MenuScreen best={best} themeId={themeId} onTheme={onTheme} onPlay={() => setScreen("game")} />
         )}
       </View>
     </SafeAreaProvider>

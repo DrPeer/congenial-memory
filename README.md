@@ -59,6 +59,22 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 
 ---
 
+## Themes & plugins (safe playground for humans & AI)
+
+- Every skin is a **plugin**: `src/plugins/<id>/` exports a `Theme` and registers with
+  one line in `src/plugins/registry.ts`. Both menus show all themes as chips; the pick
+  persists (`kittydrop-theme` key). Ships with *Sweet Berry* (default) and *Minty Milk*.
+- Scaffold one: `npm run plugin:new -- --id peach-fuzz --name "Peach Fuzz" --emoji 🍑`
+- Art pipeline: generate a magenta-back sticker sheet →
+  `npm run sprites:slice -- --sheet <png> --names a,b,c` → shared `src/assets/sprites/*.png`,
+  drawn identically on web (`HTMLImageElement`) and native (`SkImage`). Until a sprite
+  decodes, the renderer falls back to the original emoji glyphs — nothing can hard-break.
+- **Mechanics are frozen**: `src/game/sim.ts` is the original v1 system; themes/plugins
+  only repaint.
+- `npm run check` verifies everything (typechecks both platforms, builds the web game,
+  and plays a headless sim smoke; add `--full` to also Metro-export both OS bundles).
+- AI agents: read [`AGENTS.md`](AGENTS.md) first — invariants, recipes, ship commands.
+
 ## Architecture
 
 ```

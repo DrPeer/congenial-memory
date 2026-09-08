@@ -3,8 +3,10 @@ import CatIcon from "./components/CatIcon";
 import Game from "./components/Game";
 import { CATS } from "./game/cats";
 import { sfx } from "./game/sound";
+import { activeTheme, getThemes, setActiveThemeId } from "./plugins/registry";
 
 const BEST_KEY = "kittydrop-best";
+const THEME_KEY = "kittydrop-theme";
 
 export default function App() {
   const [screen, setScreen] = useState<"menu" | "game">("menu");
@@ -16,10 +18,35 @@ export default function App() {
     }
   });
   const [heroTier, setHeroTier] = useState(6);
+  const [themeId, setThemeId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved) setActiveThemeId(saved);
+    } catch {
+      /* ignore */
+    }
+    return activeTheme().id;
+  });
 
   useEffect(() => {
     const t = window.setInterval(() => setHeroTier((h) => (h + 1) % CATS.length), 1500);
     return () => window.clearInterval(t);
+  }, []);
+
+  const theme = activeTheme();
+  useEffect(() => {
+    document.documentElement.style.background = theme.hostBg;
+    document.body.style.background = theme.hostBg;
+  }, [theme]);
+
+  const pickTheme = useCallback((id: string) => {
+    setActiveThemeId(id);
+    setThemeId(id);
+    try {
+      localStorage.setItem(THEME_KEY, id);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const onBest = useCallback((b: number) => {
@@ -40,7 +67,10 @@ export default function App() {
   }
 
   return (
-    <div className="relative flex h-full w-full flex-col items-center justify-between overflow-hidden bg-gradient-to-b from-[#ffd6e7] via-[#ffe3ee] to-[#fff3d6] px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-[max(env(safe-area-inset-top),24px)]">
+    <div
+      className="relative flex h-full w-full flex-col items-center justify-between overflow-hidden px-6 pb-[max(env(safe-area-inset-bottom),20px)] pt-[max(env(safe-area-inset-top),24px)]"
+      style={{ background: `linear-gradient(to bottom, ${theme.hostBg}, ${theme.hostBgMid}, ${theme.hostBgEnd})` }}
+    >
       {/* floating deco */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden text-3xl opacity-30">
         {["🐾", "🧶", "💗", "🐟", "🐾", "✨", "🐾", "💗"].map((g, i) => (
@@ -90,6 +120,19 @@ export default function App() {
 
       {/* buttons */}
       <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3">
+        <div className="flex gap-2">
+          {getThemes().map((t) => (
+            <button
+              key={t.id}
+              onClick={() => pickTheme(t.id)}
+              className={`btn-cute px-3 py-1 text-xs ${
+                t.id === themeId ? "bg-[#ff8fb0] text-white" : "bg-white/80 text-[#a0506e]"
+              }`}
+            >
+              {t.emoji} {t.name}
+            </button>
+          ))}
+        </div>
         {best > 0 && (
           <div className="rounded-full bg-[#ffd88a] px-4 py-1 text-sm font-bold text-[#7a3b55] shadow">
             👑 Best: {best.toLocaleString()}

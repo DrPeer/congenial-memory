@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CATS, comboWord, MAX_TIER } from "../game/cats";
 import { KittyEngine, type MergeEvent } from "../game/engine";
 import { sfx } from "../game/sound";
+import { activeTheme } from "../plugins/registry";
 import CatIcon from "./CatIcon";
 
 interface Props {
@@ -155,7 +156,7 @@ export default function Game({ onExit, best, onBest }: Props) {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#ffd6e7]">
+    <div className="relative flex h-full w-full flex-col overflow-hidden" style={{ backgroundColor: activeTheme().hostBg }}>
       {/* HUD */}
       <div className="relative z-10 flex items-start justify-between gap-2 px-3 pt-[max(env(safe-area-inset-top),10px)] pb-1">
         {/* left: score */}

@@ -7,17 +7,20 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-nativ
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CATS } from "../../../src/game/cats";
+import { activeTheme, getThemes } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
 import { sfx } from "./sounds";
 
 interface Props {
   best: number;
+  themeId: string;
+  onTheme: (id: string) => void;
   onPlay: () => void;
 }
 
 const DECO = ["🐾", "🧶", "💗", "🐟", "", "✨", "", "💗"];
 
-export default function MenuScreen({ best, onPlay }: Props) {
+export default function MenuScreen({ best, themeId, onTheme, onPlay }: Props) {
   const insets = useSafeAreaInsets();
   const [heroTier, setHeroTier] = useState(6);
   const float = useRef(new Animated.Value(0)).current;
@@ -38,10 +41,12 @@ export default function MenuScreen({ best, onPlay }: Props) {
     return () => loop.stop();
   }, [float]);
 
+  const theme = activeTheme();
   return (
     <View
       style={[
         styles.root,
+        { backgroundColor: theme.hostBg },
         {
           paddingTop: Math.max(insets.top, 24),
           paddingBottom: Math.max(insets.bottom, 20),
@@ -97,6 +102,19 @@ export default function MenuScreen({ best, onPlay }: Props) {
       </View>
 
       <View style={styles.cta}>
+        <View style={styles.themeRow}>
+          {getThemes().map((t) => (
+            <Pressable
+              key={t.id}
+              style={[styles.themeChip, t.id === themeId && styles.themeChipActive]}
+              onPress={() => onTheme(t.id)}
+            >
+              <Text style={[styles.themeChipText, t.id === themeId && styles.themeChipTextActive]}>
+                {t.emoji} {t.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         {best > 0 && (
           <View style={styles.bestBadge}>
             <Text style={styles.bestBadgeText}>👑 Best: {best.toLocaleString()}</Text>
@@ -133,6 +151,11 @@ const styles = StyleSheet.create({
   howtoTitle: { textAlign: "center", fontSize: 12, fontWeight: "800", letterSpacing: 4, color: "#c46b8f", marginBottom: 2 },
   howtoLine: { fontSize: 14, color: "#7a3b55" },
   cta: { width: "100%", maxWidth: 380, alignItems: "center", gap: 12 },
+  themeRow: { flexDirection: "row", gap: 8 },
+  themeChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.8)" },
+  themeChipActive: { backgroundColor: "#ff8fb0" },
+  themeChipText: { fontSize: 12, fontWeight: "700", color: "#a0506e" },
+  themeChipTextActive: { color: "#fff" },
   bestBadge: { backgroundColor: "#ffd88a", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 4 },
   bestBadgeText: { fontSize: 14, fontWeight: "700", color: "#7a3b55" },
   playBtn: {

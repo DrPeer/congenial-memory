@@ -9,7 +9,9 @@
 import { CATS } from "./cats";
 import { renderScene } from "./render";
 import { sfx } from "./sound";
+import { webSprites } from "./spritesWeb";
 import { KittySim, WORLD_H, WORLD_W, type MergeEvent, type SimCallbacks } from "./sim";
+import { activeTheme } from "../plugins/registry";
 
 export type EngineCallbacks = SimCallbacks;
 export type { MergeEvent };
@@ -134,7 +136,7 @@ export class KittyEngine {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, offX * dpr, offY * dpr);
-    renderScene(ctx, this.sim, now);
+    renderScene(ctx, this.sim, now, { theme: activeTheme(), sprites: webSprites });
   }
 
   /* ---------- passthroughs kept for compatibility ---------- */

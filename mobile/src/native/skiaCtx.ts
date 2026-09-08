@@ -22,6 +22,7 @@ import {
   matchFont,
   type SkCanvas,
   type SkFont,
+  type SkImage,
   type SkPaint,
   type SkPath,
 } from "@shopify/react-native-skia";
@@ -223,6 +224,7 @@ export class SkiaCtx2D implements Ctx2D {
 
   private applyStyle(paint: SkPaint, style: string | Ctx2DGradient | object) {
     paint.setAntiAlias(true);
+    paint.setAlphaf(1);
     if (style instanceof Gradient) {
       const g = style;
       const colors = g.stops.map((s) => Skia.Color(withAlpha(s.c, this.globalAlpha)));
@@ -296,6 +298,22 @@ export class SkiaCtx2D implements Ctx2D {
     this.applyStyle(paint, this.strokeStyle);
     const p = this.textPos(text, x, y, font);
     this.canvas.drawText(text, p.x, p.y, paint, font);
+  }
+
+  drawImage(image: unknown, x: number, y: number, w: number, h: number) {
+    const img = image as SkImage | null;
+    if (!img || typeof img.width !== "function") return;
+    const paint = this.fillPaint;
+    paint.setStyle(PaintStyle.Fill);
+    paint.setShader(null);
+    paint.setPathEffect(null);
+    paint.setAlphaf(this.globalAlpha);
+    this.canvas.drawImageRect(
+      img,
+      { x: 0, y: 0, width: img.width(), height: img.height() },
+      { x, y, width: w, height: h },
+      paint,
+    );
   }
 
   /* ------------------------------------------------------------ gradients */

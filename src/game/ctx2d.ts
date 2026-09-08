@@ -53,6 +53,8 @@ export interface Ctx2D {
   stroke(): void;
   fillText(text: string, x: number, y: number): void;
   strokeText(text: string, x: number, y: number): void;
+  /** image handle is platform-opaque: HTMLImageElement on web, SkImage on native */
+  drawImage(image: unknown, x: number, y: number, w: number, h: number): void;
 
   /* extras used by the renderer */
   setLineDash(segments: number[]): void;
