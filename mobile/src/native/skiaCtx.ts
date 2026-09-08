@@ -20,7 +20,7 @@ import {
   StrokeJoin,
   TileMode,
   matchFont,
-  type Canvas as SkCanvas,
+  type SkCanvas,
   type SkFont,
   type SkPaint,
   type SkPath,
@@ -214,8 +214,8 @@ export class SkiaCtx2D implements Ctx2D {
     const paint = this.strokePaint;
     paint.setStyle(PaintStyle.Stroke);
     paint.setStrokeWidth(this.lineWidth);
-    paint.setStrokeCap(this.lineCap === "round" ? StrokeCap.round : this.lineCap === "square" ? StrokeCap.butt : StrokeCap.butt);
-    paint.setStrokeJoin(this.lineJoin === "round" ? StrokeJoin.round : this.lineJoin === "bevel" ? StrokeJoin.bevel : StrokeJoin.miter);
+    paint.setStrokeCap(this.lineCap === "round" ? StrokeCap.Round : this.lineCap === "square" ? StrokeCap.Butt : StrokeCap.Butt);
+    paint.setStrokeJoin(this.lineJoin === "round" ? StrokeJoin.Round : this.lineJoin === "bevel" ? StrokeJoin.Bevel : StrokeJoin.Miter);
     paint.setPathEffect(this.lineDash.length ? Skia.PathEffect.MakeDash(this.lineDash, this.lineDashOffset) : null);
     this.applyStyle(paint, this.strokeStyle);
     this.canvas.drawPath(this.path, paint);
@@ -290,8 +290,8 @@ export class SkiaCtx2D implements Ctx2D {
     const paint = this.strokePaint;
     paint.setStyle(PaintStyle.Stroke);
     paint.setStrokeWidth(this.lineWidth);
-    paint.setStrokeJoin(StrokeJoin.round);
-    paint.setStrokeCap(StrokeCap.round);
+    paint.setStrokeJoin(StrokeJoin.Round);
+    paint.setStrokeCap(StrokeCap.Round);
     paint.setPathEffect(null);
     this.applyStyle(paint, this.strokeStyle);
     const p = this.textPos(text, x, y, font);

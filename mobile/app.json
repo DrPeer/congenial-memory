@@ -8,7 +8,9 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#ffd6e7",
     "primaryColor": "#ff5c8a",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.kittydrop.game",
       "supportsTablet": true,
@@ -41,12 +43,16 @@
         {
           "initialOrientation": "PORTRAIT_UP"
         }
-      ]
+      ],
+      "expo-updates"
     ],
     "extra": {
       "eas": {
         "projectId": ""
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
