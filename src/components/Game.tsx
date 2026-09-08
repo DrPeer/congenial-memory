@@ -3,7 +3,8 @@ import { CATS, comboWord, MAX_TIER } from "../game/cats";
 import { AD_SECONDS, pickFakeAd, type FakeAd } from "../game/ads";
 import { LEVELS, type LevelDef } from "../game/levels";
 import { MissionStore, type MissionEvent } from "../game/missions";
-import { BOOST_RAISE_COST, BOOST_SHOOT_COST, MAX_CUP_LIFT } from "../game/sim";
+import { BOOST_RAISE_COST, BOOST_SHOOT_COST, MAX_CUP_LIFT, type ModeDef } from "../game/sim";
+import { music } from "../game/music";
 import { KittyEngine, type MergeEvent } from "../game/engine";
 import { sfx } from "../game/sound";
 import { findCupSkin, findTrail } from "../game/shop";
@@ -19,6 +20,7 @@ interface Props {
   level: LevelDef;
   onSelectLevel: (id: string) => void;
   equip: { cup?: string; trail?: string };
+  mode: ModeDef;
 }
 
 const MISSIONS_KEY = "kittydrop-missions";
@@ -47,7 +49,7 @@ const saveCoins = (v: number) => {
   }
 };
 
-export default function Game({ onExit, best, onBest, level, onSelectLevel, equip }: Props) {
+export default function Game({ onExit, best, onBest, level, onSelectLevel, equip, mode }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<KittyEngine | null>(null);
@@ -65,6 +67,14 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
   const [showChain, setShowChain] = useState(false);
   const [runKey, setRunKey] = useState(0);
   const [coins, setCoins] = useState(loadCoins);
+  const [aiming, setAiming] = useState(false);
+  const [musicOn, setMusicOn] = useState(() => {
+    try {
+      return localStorage.getItem("kittydrop-music") !== "0";
+    } catch {
+      return true;
+    }
+  });
   const [win, setWin] = useState(false);
   const [reviveUsed, setReviveUsed] = useState(false);
   const [ad, setAd] = useState<{ purpose: "revive" | "retry"; left: number } | null>(null);
@@ -220,7 +230,9 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
         },
       },
       level,
+      mode,
     );
+    setAiming(false);
     eng.setLook({ cupSkin: findCupSkin(equip.cup), trail: findTrail(equip.trail) });
     if (equip.cup || equip.trail) feed({ type: "equipSkin" });
     engineRef.current = eng;
@@ -239,7 +251,15 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
       eng.destroy();
       engineRef.current = null;
     };
-  }, [runKey, handleMerge, onBest, feed, level, equip]);
+  }, [runKey, handleMerge, onBest, feed, level, equip, mode]);
+
+  // themed background music for this map
+  useEffect(() => {
+    music.setEnabled(musicOn);
+    music.playTrack(level.id);
+    return () => music.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level]);
 
   // banner auto clear
   useEffect(() => {
@@ -253,22 +273,60 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
     const eng = engineRef.current;
     if (!eng || paused || over) return;
     sfx.unlock();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    if (eng.aiming) {
+      eng.setAim(e.clientX, e.clientY);
+      dragging.current = false;
+      return;
+    }
     dragging.current = true;
     eng.setPointer(e.clientX);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const eng = engineRef.current;
     if (!eng || paused || over) return;
+    if (eng.aiming) {
+      eng.setAim(e.clientX, e.clientY);
+      return;
+    }
     eng.setPointer(e.clientX);
   };
   const onPointerUp = (e: React.PointerEvent) => {
     const eng = engineRef.current;
     if (!eng || paused || over) return;
+    if (eng.aiming) {
+      eng.setAim(e.clientX, e.clientY);
+      if (eng.shootAtAim()) setAiming(false);
+      return;
+    }
     if (!dragging.current) return;
     dragging.current = false;
     eng.setPointer(e.clientX);
     eng.drop();
+  };
+
+  const cancelAim = () => {
+    const eng = engineRef.current;
+    if (!eng) return;
+    eng.cancelAim();
+    setAiming(false);
+    setCoins((c) => {
+      const v = c + BOOST_SHOOT_COST;
+      saveCoins(v);
+      return v;
+    });
+    sfx.pop(0.8);
+  };
+
+  const toggleMusic = () => {
+    const v = !musicOn;
+    setMusicOn(v);
+    try {
+      localStorage.setItem("kittydrop-music", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+    music.setEnabled(v);
   };
 
   const togglePause = () => {
@@ -298,7 +356,7 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
         {/* left: score */}
         <div className="flex flex-col gap-1.5">
           <div
-            className={`rounded-2xl border-4 border-white bg-[#a97c6a] px-3 py-1.5 text-white shadow-md ${danger ? "anim-danger" : ""}`}
+            className={`rounded-2xl border-4 border-white bg-gradient-to-b from-[#bd917d] to-[#96644f] px-3 py-1.5 text-white shadow-[0_4px_12px_rgba(90,50,35,0.35)] ${danger ? "anim-danger" : ""}`}
           >
             <div className="text-[10px] font-bold tracking-[0.25em] text-[#ffe4c8]">SCORE</div>
             <div key={bump} className="anim-bump text-2xl font-bold leading-none tabular-nums">
@@ -310,6 +368,12 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
           </div>
           <div className="flex items-center gap-1 rounded-xl bg-[#ffd76a] px-2.5 py-1 text-[11px] font-bold text-[#7a5210] shadow-sm">
             <Icon id="coin" size={14} /> {coins.toLocaleString()}
+          </div>
+          <div
+            className="rounded-xl px-2.5 py-1 text-[10px] font-bold tracking-wider text-white shadow-sm"
+            style={{ backgroundColor: mode.color }}
+          >
+            {mode.name} · ×{mode.scoreMult} SCORE
           </div>
         </div>
 
@@ -325,15 +389,17 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
             <button
               onClick={() => {
                 const eng = engineRef.current;
-                if (eng && eng.shootCat()) {
-                  spendCoins(BOOST_SHOOT_COST);
-                  feed({ type: "booster" });
-                }
+                if (!eng || aiming || coins < BOOST_SHOOT_COST || over || paused) return;
+                spendCoins(BOOST_SHOOT_COST);
+                feed({ type: "booster" });
+                eng.beginAim();
+                setAiming(true);
+                setBanner({ id: Date.now(), text: "SCOPE ON!", sub: "tap a kitty to launch it", color: "#5aa7e8" });
               }}
-              disabled={coins < BOOST_SHOOT_COST || !!over || paused}
-              className="btn-cute relative flex h-11 min-w-11 items-center justify-center gap-0.5 bg-[#bfe3ff] px-2 disabled:opacity-40"
-              aria-label="Shoot top kitty"
-              title="Shoot the topmost kitty out of the cup"
+              disabled={coins < BOOST_SHOOT_COST || !!over || paused || aiming}
+              className={`btn-cute relative flex h-11 min-w-11 items-center justify-center gap-0.5 bg-[#bfe3ff] px-2 disabled:opacity-40 ${aiming ? "anim-danger" : ""}`}
+              aria-label="Shoot a kitty (scope mode)"
+              title="Arm the scope, then tap WHICH kitty to launch"
             >
               <Icon id="target" size={22} />
               <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#28577a]">
@@ -376,9 +442,18 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
             <button
               onClick={toggleMute}
               className="btn-cute flex h-11 w-11 items-center justify-center bg-white"
-              aria-label="Mute"
+              aria-label="Mute sound effects"
             >
               <Icon id={muted ? "speakeroff" : "speaker"} size={22} />
+            </button>
+            <button
+              onClick={toggleMusic}
+              className="btn-cute flex h-11 w-11 items-center justify-center bg-white text-xl font-bold"
+              style={{ color: musicOn ? "#ff5c8a" : "#cbb8c4" }}
+              aria-label="Toggle background music"
+              title="Background music"
+            >
+              ♪
             </button>
             <button
               onClick={togglePause}
@@ -410,6 +485,19 @@ export default function Game({ onExit, best, onBest, level, onSelectLevel, equip
         onPointerCancel={() => (dragging.current = false)}
       >
         <canvas ref={canvasRef} className="absolute inset-0" />
+
+        {/* scope cancel (refunds the shot) */}
+        {aiming && (
+          <div className="absolute inset-x-0 top-2 z-30 flex justify-center">
+            <button
+              onClick={cancelAim}
+              className="btn-cute flex items-center gap-2 bg-white/95 px-4 py-2 text-xs font-bold text-[#a0506e] shadow-lg"
+              aria-label="Cancel scope and refund"
+            >
+              <Icon id="home" size={16} /> CANCEL · refund <Icon id="coin" size={13} /> {BOOST_SHOOT_COST}
+            </button>
+          </div>
+        )}
 
         {/* combo banner */}
         {banner && (

@@ -50,6 +50,7 @@ export interface Ctx2D {
 
   /* draw */
   fill(): void;
+  fillRect(x: number, y: number, w: number, h: number): void;
   stroke(): void;
   fillText(text: string, x: number, y: number): void;
   strokeText(text: string, x: number, y: number): void;

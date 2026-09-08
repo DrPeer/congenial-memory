@@ -111,12 +111,16 @@ function eyeHeart(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.fill();
 }
 
-function drawFace(ctx: Ctx2D, r: number, def: CatDef) {
+function drawFace(ctx: Ctx2D, r: number, def: CatDef, blink = false) {
   const ey = -r * 0.08;
   const ex = r * 0.3;
   const exp = def.expression;
 
-  switch (exp) {
+  // mid-blink: soft closed lids override the expression for a few frames
+  if (blink && exp !== "cool") {
+    eyeSleepy(ctx, -ex, ey, r);
+    eyeSleepy(ctx, ex, ey, r);
+  } else switch (exp) {
     case "open":
       eyeOpen(ctx, -ex, ey, r);
       eyeOpen(ctx, ex, ey, r);
@@ -419,6 +423,11 @@ function drawTiara(ctx: Ctx2D, r: number) {
   ctx.restore();
 }
 
+export interface DrawCatOpts {
+  /** draw closed lids this frame (idle blink cycle) */
+  blink?: boolean;
+}
+
 export function drawCat(
   ctx: Ctx2D,
   x: number,
@@ -428,6 +437,7 @@ export function drawCat(
   sx = 1,
   sy = 1,
   angle = 0,
+  opts: DrawCatOpts = {},
 ) {
   ctx.save();
   ctx.translate(x, y);
@@ -572,7 +582,7 @@ export function drawCat(
   ctx.ellipse(-r * 0.4, -r * 0.5, r * 0.22, r * 0.12, -0.7, 0, Math.PI * 2);
   ctx.fill();
 
-  drawFace(ctx, r, def);
+  drawFace(ctx, r, def, opts.blink);
   drawAccessory(ctx, r, def);
 
   // plushie stitch seam — the "handmade" signature

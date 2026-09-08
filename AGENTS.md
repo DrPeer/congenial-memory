@@ -66,6 +66,12 @@ Keep source sheets in `mobile/assets/_*-source.png` (underscore = raw source, no
   (native WAVs), then `node scripts/gen-sounds.mjs` + add the require to
   `mobile/src/native/sounds.ts`.
 - Haptics: native only, in `GameScreen` merge/drop handlers.
+- Music: ONE spec in `src/game/musicSpec.ts` — web plays it live
+  (`src/game/music.ts`), native plays WAV loops rendered by
+  `npm run music:gen`. Never hand-edit `mobile/assets/music/*.wav`.
+- Difficulty knobs (gravity/fuse/multipliers) live in `MODES` in
+  `src/game/sim.ts`; hosts only pass a `ModeDef` around. Rules changes that
+  touch `sim.ts` must keep `npm run check` green (the smoke test is v1 rules).
 - Shop items: edit the shared catalog in `src/game/shop.ts` (themes must be full
   `Theme`s; cup skins are paint overrides; trails are `SpriteId[]`), then mirror UI
   in `src/components/Shop.tsx` + `mobile/src/native/ShopModal.tsx`. Real-money flow

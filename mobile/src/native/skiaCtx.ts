@@ -158,6 +158,14 @@ export class SkiaCtx2D implements Ctx2D {
   clip() {
     this.canvas.clipPath(this.path, ClipOp.Intersect, true);
   }
+  fillRect(x: number, y: number, w: number, h: number) {
+    const p = Skia.Path.Make();
+    p.addRect({ x, y, width: w, height: h });
+    const paint = this.fillPaint;
+    paint.setStyle(PaintStyle.Fill);
+    this.applyStyle(paint, this.fillStyle);
+    this.canvas.drawPath(p, paint);
+  }
 
   /* ------------------------------------------------------------ paths */
 

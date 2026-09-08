@@ -84,20 +84,29 @@ class SvgCtx2D {
     this.lineDashOffset = 0;
     this.stack = [];
     this.d = "";
+    this.activeClip = null;
   }
   /* state */
   save() {
-    this.stack.push([this.tf, this.alpha, this.fillStyle, this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.font, this.textAlign, this.textBaseline, this.dash, this.lineDashOffset]);
+    this.stack.push([this.tf, this.alpha, this.fillStyle, this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.font, this.textAlign, this.textBaseline, this.dash, this.lineDashOffset, this.activeClip]);
   }
   restore() {
     const s = this.stack.pop();
     if (!s) return;
-    [this.tf, this.alpha, this.fillStyle, this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.font, this.textAlign, this.textBaseline, this.dash, this.lineDashOffset] = s;
+    [this.tf, this.alpha, this.fillStyle, this.strokeStyle, this.lineWidth, this.lineCap, this.lineJoin, this.font, this.textAlign, this.textBaseline, this.dash, this.lineDashOffset, this.activeClip] = s;
   }
   translate(x, y) { this.tf += `translate(${x} ${y}) `; }
   rotate(rad) { this.tf += `rotate(${(rad * DEG).toFixed(3)}) `; }
   scale(x, y) { this.tf += `scale(${x} ${y}) `; }
-  clip() { /* not used by the renderer */ }
+  clip() {
+    if (!this.d) return;
+    const id = `clip${this.defs.length}`;
+    this.defs.push(`<clipPath id="${id}" clipPathUnits="userSpaceOnUse"><path d="${this.d}"/></clipPath>`);
+    this.activeClip = id;
+  }
+  fillRect(x, y, w, h) {
+    this.out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${this._paint(this.fillStyle)}"${this._common()}/>`);
+  }
   /* paths */
   beginPath() { this.d = ""; }
   closePath() { this.d += "Z "; }
@@ -145,7 +154,7 @@ class SvgCtx2D {
     return String(style);
   }
   _common() {
-    return `${this.tf ? ` transform="${this.tf.trim()}"` : ""}${this.alpha < 1 ? ` opacity="${this.alpha}"` : ""}`;
+    return `${this.tf ? ` transform="${this.tf.trim()}"` : ""}${this.alpha < 1 ? ` opacity="${this.alpha}"` : ""}${this.activeClip ? ` clip-path="url(#${this.activeClip})"` : ""}`;
   }
   fill() {
     if (!this.d) return;

@@ -34,8 +34,47 @@ export const MAX_CUP_LIFT = 120;
 export const CUP_LIFT_STEP = 60;
 /** the raise perk is temporary: the cup relaxes back after this long */
 export const RAISE_DURATION_MS = 20000;
-/** how long an overfull cup survives before game over (the countdown) */
+/** how long an overfull cup survives before game over (the countdown, normal mode) */
 export const DANGER_FUSE_MS = 1800;
+
+/* ------------------------------------------------------------ modes */
+
+export type ModeId = "easy" | "normal" | "hard";
+
+export interface ModeDef {
+  id: ModeId;
+  name: string;
+  desc: string;
+  /** signature colour (UI cards, HUD badge) */
+  color: string;
+  /** physics + rules knobs */
+  gravity: number;
+  fuseMs: number;
+  dropCoolMs: number;
+  scoreMult: number;
+  coinMult: number;
+}
+
+export const MODES: Record<ModeId, ModeDef> = {
+  easy: {
+    id: "easy", name: "EASY", desc: "Gentle gravity · long fuse · 0.8× score",
+    color: "#4ec9a5", gravity: 0.9, fuseMs: 2600, dropCoolMs: 480, scoreMult: 0.8, coinMult: 1,
+  },
+  normal: {
+    id: "normal", name: "NORMAL", desc: "The classic Kitty Drop · 1× score",
+    color: "#ff8fb0", gravity: 1.05, fuseMs: 1800, dropCoolMs: 550, scoreMult: 1, coinMult: 1,
+  },
+  hard: {
+    id: "hard", name: "HARD", desc: "Heavy gravity · short fuse · 1.5× score & coins",
+    color: "#ff6b57", gravity: 1.28, fuseMs: 1200, dropCoolMs: 640, scoreMult: 1.5, coinMult: 1.5,
+  },
+};
+
+export const MODE_LIST: ModeDef[] = [MODES.easy, MODES.normal, MODES.hard];
+
+export function getMode(id?: string | null): ModeDef {
+  return (id === "easy" || id === "hard" ? MODES[id] : MODES.normal);
+}
 
 export interface CatView {
   x: number;
@@ -143,6 +182,9 @@ export class KittySim {
   raiseLeft = 0;
   /** kitties launched out by the shoot booster (renderer animates them) */
   shots: Shot[] = [];
+  /** scope mode: after buying SHOOT the player taps the kitty to launch */
+  aiming = false;
+  aim: { x: number; y: number } = { x: WORLD_W / 2, y: 320 };
   /** coins minted this run */
   coinsEarned = 0;
 
@@ -155,16 +197,28 @@ export class KittySim {
 
   /** current level (rules + obstacles + cosmetics id) */
   level: LevelDef = LEVELS[0];
+  /** difficulty mode (gravity, fuse, multipliers) */
+  mode: ModeDef = MODES.normal;
+  get fuseMs(): number {
+    return this.mode.fuseMs;
+  }
+  get wallLeft(): number {
+    return this.leftTop;
+  }
+  get wallRight(): number {
+    return this.rightTop;
+  }
   won = false;
   revivesUsed = 0;
   private leftTop = CUP_LEFT_TOP;
   private rightTop = CUP_RIGHT_TOP;
 
-  constructor(private cb: SimCallbacks, level?: LevelDef) {
+  constructor(private cb: SimCallbacks, level?: LevelDef, mode?: ModeDef) {
     if (level) this.level = level;
+    if (mode) this.mode = mode;
     this.leftTop = CUP_LEFT_TOP + this.level.cupInset;
     this.rightTop = CUP_RIGHT_TOP - this.level.cupInset;
-    this.engine.gravity.y = 1.05;
+    this.engine.gravity.y = this.mode.gravity;
     this.engine.positionIterations = 8;
     this.engine.velocityIterations = 6;
     this.buildWalls();
@@ -255,7 +309,7 @@ export class KittySim {
     this.spawn(x, DROP_Y, tier, 1);
     this.dropCount++;
     this.canDrop = false;
-    this.dropReadyAt = now + 550;
+    this.dropReadyAt = now + this.mode.dropCoolMs;
 
     this.currentTier = this.nextTier;
     this.nextTier = randomDropTier();
@@ -326,12 +380,12 @@ export class KittySim {
       let newTier: number | null = null;
       if (tier >= MAX_TIER) {
         mega = true;
-        points = MEGA_MERGE_BONUS * this.combo;
+        points = Math.round(MEGA_MERGE_BONUS * this.combo * this.mode.scoreMult);
         this.burst(mx, my, 40, ["👑", "✨", "⭐", "💖"], this.fxMega);
         this.addPopup(mx, my - 40, "MEGA MEOW!", "#ff3d6e", 34, 1800);
       } else {
         newTier = tier + 1;
-        points = Math.round(CATS[newTier].points * mult);
+        points = Math.round(CATS[newTier].points * mult * this.mode.scoreMult);
         const nb = this.spawn(mx, my, newTier, 0.4);
         Body.setVelocity(nb, {
           x: (a.velocity.x + b.velocity.x) / 2,
@@ -356,7 +410,7 @@ export class KittySim {
         }
       }
 
-      const coins = mega ? 10 : newTier!;
+      const coins = Math.max(1, Math.round((mega ? 10 : newTier!) * this.mode.coinMult));
       this.coinsEarned += coins;
       this.score += points;
       this.addPopup(mx, my - 10, `+${points}`, mega ? "#ffb300" : "#ff5c8a", 20 + Math.min(this.combo, 6) * 2, 1100);
@@ -417,27 +471,87 @@ export class KittySim {
     return true;
   }
 
-  /** Coin booster: shoot the topmost kitty clean out of the cup. */
+  /** Coin booster: shoot the topmost kitty clean out of the cup (legacy auto-aim). */
   shootTopCat(): boolean {
     if (this.over) return false;
-    const now = performance.now();
     let top: Matter.Body | null = null;
     let topY = Infinity;
     for (const body of Composite.allBodies(this.engine.world)) {
       if (body.label !== "cat") continue;
       const d = this.cats.get(body.id);
-      if (!d || now - d.born < 500) continue;
+      if (!d || performance.now() - d.born < 500) continue;
       if (body.position.y < topY) {
         topY = body.position.y;
         top = body;
       }
     }
-    if (!top) return false;
-    const d = this.cats.get(top.id)!;
-    this.shots.push({ x: top.position.x, y: topY, tier: d.tier, t0: now });
-    this.removeBody(top);
-    this.burst(top.position.x, topY, 14, ["💨", "✨", "⭐"]);
-    this.addPopup(top.position.x, topY - 30, "BYE-KITTY!", "#5aa7e8", 22, 1200);
+    return top ? this.launchCat(top) : false;
+  }
+
+  /* -------- scope: pick WHICH kitty to shoot -------- */
+
+  beginAim() {
+    if (this.over) return;
+    this.aiming = true;
+  }
+
+  cancelAim() {
+    this.aiming = false;
+  }
+
+  setAim(x: number, y: number) {
+    this.aim.x = Math.max(8, Math.min(WORLD_W - 8, x));
+    this.aim.y = Math.max(this.cupTop - 40, Math.min(CUP_FLOOR - 8, y));
+  }
+
+  /** kitty under the crosshair (generous touch radius for phones) */
+  catAtAim(): CatView | null {
+    const now = performance.now();
+    let best: CatView | null = null;
+    let bestD = Infinity;
+    for (const c of this.catViews()) {
+      if (now - c.born < 500) continue;
+      const d = Math.hypot(c.x - this.aim.x, c.y - this.aim.y);
+      if (d < Math.max(c.r + 10, 36) && d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  /** fire at the crosshair; true when a kitty was hit (aim ends on a hit) */
+  shootAtAim(): boolean {
+    if (!this.aiming || this.over) return false;
+    const now = performance.now();
+    let target: Matter.Body | null = null;
+    let bestD = Infinity;
+    for (const body of Composite.allBodies(this.engine.world)) {
+      if (body.label !== "cat") continue;
+      const d = this.cats.get(body.id);
+      if (!d || now - d.born < 500) continue;
+      const dist = Math.hypot(body.position.x - this.aim.x, body.position.y - this.aim.y);
+      const r = body.circleRadius ?? CATS[d.tier].radius;
+      if (dist < Math.max(r + 10, 36) && dist < bestD) {
+        bestD = dist;
+        target = body;
+      }
+    }
+    if (!target) return false;
+    this.aiming = false;
+    return this.launchCat(target);
+  }
+
+  private launchCat(body: Matter.Body): boolean {
+    const d = this.cats.get(body.id);
+    if (!d) return false;
+    const now = performance.now();
+    const x = body.position.x;
+    const y = body.position.y;
+    this.shots.push({ x, y, tier: d.tier, t0: now });
+    this.removeBody(body);
+    this.burst(x, y, 14, ["💨", "✨", "⭐"], this.fxMerge);
+    this.addPopup(x, y - 30, "BYE-KITTY!", "#5aa7e8", 22, 1200);
     return true;
   }
 
@@ -493,8 +607,8 @@ export class KittySim {
         this.danger = true;
         this.cb.onDanger(true);
       }
-      this.dangerLeft = Math.max(0, DANGER_FUSE_MS - (now - this.dangerSince));
-      if (now - this.dangerSince > DANGER_FUSE_MS) this.endGame();
+      this.dangerLeft = Math.max(0, this.fuseMs - (now - this.dangerSince));
+      if (now - this.dangerSince > this.fuseMs) this.endGame();
     } else {
       this.dangerSince = null;
       this.dangerLeft = 0;

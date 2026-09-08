@@ -26,6 +26,7 @@ import {
   WORLD_H,
   WORLD_W,
   type MergeEvent,
+  type ModeDef,
 } from "../../../src/game/sim";
 import { LEVEL_ICON } from "../../../src/game/sprites";
 import { activeTheme } from "../../../src/plugins/registry";
@@ -34,6 +35,7 @@ import Icon from "./Icon";
 import { missionStore } from "./missionsNative";
 import { nativeSprites } from "./spritesNative";
 import { findCupSkin, findTrail } from "../../../src/game/shop";
+import { music } from "./musicNative";
 import { sfx } from "./sounds";
 import { SkiaCtx2D } from "./skiaCtx";
 
@@ -44,6 +46,7 @@ interface Props {
   level: LevelDef;
   onSelectLevel: (id: string) => void;
   equip: { cup?: string; trail?: string };
+  mode: ModeDef;
 }
 
 const REVIVE_COST = 30;
@@ -57,13 +60,15 @@ interface Banner {
 
 const BG = "#ffd6e7";
 
-export default function GameScreen({ best, onBest, onExit, level, onSelectLevel, equip }: Props) {
+export default function GameScreen({ best, onBest, onExit, level, onSelectLevel, equip, mode }: Props) {
   const insets = useSafeAreaInsets();
   const simRef = useRef<KittySim | null>(null);
   const viewRef = useRef({ w: 0, h: 0, scale: 1, offX: 0, offY: 0 });
   const dragging = useRef(false);
   const equipRef = useRef(equip);
   equipRef.current = equip;
+  const [aiming, setAiming] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
   useEffect(() => {
     if (equip.cup || equip.trail) feed({ type: "equipSkin" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,14 +171,45 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
 
   const shootBooster = useCallback(() => {
     const sim = simRef.current;
-    if (!sim || sim.over) return;
-    if (sim.shootTopCat()) {
-      feed({ type: "booster" });
-      sfx.shoot();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      spendCoins(BOOST_SHOOT_COST);
-    }
+    if (!sim || sim.over || sim.aiming) return;
+    spendCoins(BOOST_SHOOT_COST);
+    feed({ type: "booster" });
+    sim.beginAim();
+    setAiming(true);
+    setBanner({ id: Date.now(), text: "SCOPE ON!", sub: "tap a kitty to launch it", color: "#5aa7e8" });
   }, [spendCoins, feed]);
+
+  const cancelAim = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim) return;
+    sim.cancelAim();
+    setAiming(false);
+    earnCoins(BOOST_SHOOT_COST);
+    sfx.pop(1);
+  }, [earnCoins]);
+
+  /* themed background music for this map */
+  useEffect(() => {
+    AsyncStorage.getItem("kittydrop-music")
+      .then((v) => {
+        const on = v !== "0";
+        setMusicOn(on);
+        music.setEnabled(on);
+        music.setTrack(level.id);
+      })
+      .catch(() => music.setTrack(level.id));
+    return () => music.stop();
+  }, [level]);
+
+  const toggleMusic = useCallback(() => {
+    setMusicOn((on) => {
+      const v = !on;
+      AsyncStorage.setItem("kittydrop-music", v ? "1" : "0").catch(() => {});
+      music.setEnabled(v);
+      if (v) music.setTrack(level.id);
+      return v;
+    });
+  }, [level]);
 
   const raiseBooster = useCallback(() => {
     const sim = simRef.current;
@@ -258,8 +294,9 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
         setDiscover(tier);
         setTimeout(() => setDiscover((d) => (d === tier ? null : d)), 1800);
       },
-    }, level);
+    }, level, mode);
     sim.setFx(findTrail(equip.trail)?.sprites ?? null);
+    setAiming(false);
     simRef.current = sim;
 
     void nativeSprites.warm();
@@ -329,22 +366,43 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
   };
 
   const worldX = (locationX: number) => (locationX - viewRef.current.offX) / viewRef.current.scale;
+  const worldY = (locationY: number) => (locationY - viewRef.current.offY) / viewRef.current.scale;
 
-  const onGrant = (e: { nativeEvent: { locationX: number } }) => {
+  const onGrant = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
     const sim = simRef.current;
     if (!sim || paused || over) return;
     void sfx.unlock();
+    if (sim.aiming) {
+      sim.setAim(worldX(e.nativeEvent.locationX), worldY(e.nativeEvent.locationY));
+      dragging.current = false;
+      return;
+    }
     dragging.current = true;
     sim.setPointerWorldX(worldX(e.nativeEvent.locationX));
   };
-  const onMove = (e: { nativeEvent: { locationX: number } }) => {
+  const onMove = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
     const sim = simRef.current;
-    if (!sim || paused || over || !dragging.current) return;
+    if (!sim || paused || over) return;
+    if (sim.aiming) {
+      sim.setAim(worldX(e.nativeEvent.locationX), worldY(e.nativeEvent.locationY));
+      return;
+    }
+    if (!dragging.current) return;
     sim.setPointerWorldX(worldX(e.nativeEvent.locationX));
   };
-  const onRelease = (e: { nativeEvent: { locationX: number } }) => {
+  const onRelease = (e: { nativeEvent: { locationX: number; locationY: number } }) => {
     const sim = simRef.current;
-    if (!sim || paused || over || !dragging.current) return;
+    if (!sim || paused || over) return;
+    if (sim.aiming) {
+      sim.setAim(worldX(e.nativeEvent.locationX), worldY(e.nativeEvent.locationY));
+      if (sim.shootAtAim()) {
+        setAiming(false);
+        sfx.shoot();
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+      return;
+    }
+    if (!dragging.current) return;
     dragging.current = false;
     sim.setPointerWorldX(worldX(e.nativeEvent.locationX));
     const tier = sim.currentTier;
@@ -392,6 +450,9 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
             <Icon id="coin" size={14} />
             <Text style={styles.coinChipText}>{coins.toLocaleString()}</Text>
           </View>
+          <View style={[styles.modeBadge, { backgroundColor: mode.color }]}>
+            <Text style={styles.modeBadgeText}>{mode.name} · ×{mode.scoreMult}</Text>
+          </View>
         </View>
         <View style={styles.hudRight}>
           <View style={styles.nextBox}>
@@ -404,9 +465,9 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
           </View>
           <View style={styles.btnRow}>
             <Pressable
-              style={[styles.boostBtn, { backgroundColor: "#bfe3ff" }, (coins < BOOST_SHOOT_COST || !!over || paused) && styles.boostOff]}
+              style={[styles.boostBtn, { backgroundColor: "#bfe3ff" }, (coins < BOOST_SHOOT_COST || !!over || paused || aiming) && styles.boostOff]}
               onPress={shootBooster}
-              disabled={coins < BOOST_SHOOT_COST || !!over || paused}
+              disabled={coins < BOOST_SHOOT_COST || !!over || paused || aiming}
             >
               <Icon id="target" size={22} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
@@ -434,6 +495,9 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
             </Pressable>
             <Pressable style={styles.hudBtn} onPress={toggleMute}>
               <Icon id={muted ? "speakeroff" : "speaker"} size={22} />
+            </Pressable>
+            <Pressable style={styles.hudBtn} onPress={toggleMusic}>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: musicOn ? "#ff5c8a" : "#cbb8c4" }}>♪</Text>
             </Pressable>
             <Pressable style={styles.hudBtn} onPress={togglePause}>
               <Icon id={paused ? "play" : "pause"} size={22} />
@@ -463,6 +527,17 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel,
         onResponderTerminate={() => (dragging.current = false)}
       >
         <Canvas style={StyleSheet.absoluteFill}>{picture ? <Picture picture={picture} /> : null}</Canvas>
+
+        {aiming && (
+          <View pointerEvents="box-none" style={styles.aimBar}>
+            <Pressable style={styles.aimCancel} onPress={cancelAim}>
+              <Icon id="home" size={16} />
+              <Text style={styles.aimCancelText}>  CANCEL · refund </Text>
+              <Icon id="coin" size={13} />
+              <Text style={styles.aimCancelText}> {BOOST_SHOOT_COST}</Text>
+            </Pressable>
+          </View>
+        )}
 
         {banner && (
           <View key={banner.id} pointerEvents="none" style={styles.bannerWrap}>
@@ -729,6 +804,11 @@ const styles = StyleSheet.create({
   nextBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#a97c6a", borderRadius: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 8, paddingVertical: 4 },
   nextThumb: { backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999 },
   btnRow: { flexDirection: "row", gap: 6 },
+  modeBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, alignSelf: "flex-start" },
+  modeBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  aimBar: { position: "absolute", top: 8, left: 0, right: 0, alignItems: "center" },
+  aimCancel: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, shadowColor: "#7a3b55", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
+  aimCancelText: { color: "#a0506e", fontSize: 12, fontWeight: "800" },
   hudBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   hudBtnText: { fontSize: 16 },
   droppingRow: { alignItems: "center", marginTop: -2 },

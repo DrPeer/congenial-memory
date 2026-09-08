@@ -37,6 +37,8 @@ src/game/            THE shared core (web + native run this exact code)
   spritesWeb.ts      web bank: vite png imports → HTMLImageElement
   levels.ts          3 worlds: theme + obstacles + cup inset + win tier
   missions.ts        MissionStore: shared meta goals + coin rewards
+  musicSpec.ts       ONE music source: chord loops per map (web synth + wav gen)
+  music.ts           web BGM scheduler (WebAudio lookahead loop)
   ads.ts             ad-slot seam (simulated sponsor reel today)
   shop.ts            shop catalog: coin packs, theme/basket/trail skins, Equip type
   purchases.ts       real-money seam: PurchaseProvider + SimulatedCheckout (test mode)
@@ -56,6 +58,7 @@ mobile/              Expo app (its own package.json/node_modules!)
     ShopModal.tsx    native shop (RN twin of web Shop.tsx)
     spritesNative.ts expo-asset → bytes → SkImage bank
     sounds.ts        31 WAV pools (expo-audio); catPicture.ts Skia cat portraits
+    musicNative.ts   expo-audio loop player for the WAV music tracks
   assets/sounds/     generated WAVs (scripts/gen-sounds.mjs)
   assets/_*-source.png  raw AI sheet sources (underscore = not bundled)
 scripts/
@@ -64,6 +67,7 @@ scripts/
   slice-sprites.mjs  magenta sheet → chroma-key → src/assets/sprites/*.png
   screenshot-game.mjs headless gameplay frames via real renderer → screenshots/*.png
   gen-sounds.mjs     offline WebAudio math → 31 WAVs
+  gen-music.mjs      musicSpec.ts → seamless loop WAVs (native BGM)
   start-mobile.mjs   friendly `npm run mobile` launcher
 docs/index.html      published single-file web build (GitHub Pages / CDN)
 AGENTS.md            rules for AI agents (invariants, recipes, verify-before-finish)
@@ -129,6 +133,8 @@ First time on a PC: `npm run mobile:setup` (installs root + mobile deps).
 - Verified green: `npm run check`, Metro android+ios bundles, web single-file build.
 - Shop live (coins→skins, money→coins via test-mode checkout); real store billing
   awaits a provider hookup (RevenueCat/expo-iap native, Stripe web) — seam is ready.
+- Splash (guest/local login) + 3 difficulty modes + scope-aim shoot booster +
+  themed BGM (web synth / native WAV loops) + glass-jar visual pass: all in.
 - Headless frames for both themes: `screenshots/frame-*.png` (regenerate anytime).
 
 ## 7. Ideas parked for later

@@ -113,6 +113,38 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 - Two new missions feed the loop: *Score 5,000 in one run* (+40🪙) and
   *Equip a custom skin from the shop* (+10🪙).
 
+## Modes, scope-aim, music & the visual glow-up
+
+- **Simpler entry**: launch → animated logo splash → *PLAY AS GUEST* or *LOGIN*
+  (local-only profile, no server) → menu → pick a mode → PLAY.
+- **Three difficulty modes** (menu cards + HUD badge, saved in `kittydrop-mode`):
+  - 🟢 EASY — gentle gravity, 2.6 s overfull fuse, ×0.8 score
+  - 🩷 NORMAL — the classic rules, 1.8 s fuse, ×1
+  - 🔴 HARD — heavy gravity, 1.2 s fuse, ×1.5 score **and** coins
+- **Scope for the shoot booster**: tapping SHOOT (8🪙) now arms a rotating
+  crosshair — move your finger/mouse and tap the kitty YOU want launched.
+  A miss costs nothing; CANCEL refunds the coins. Works identically on phones.
+- **Background music, themed per map**: cosy menu waltz + a loop per world
+  (meadow / sunny shore / clover hills). Web synthesises it live (WebAudio);
+  native plays seamless WAV loops rendered from the SAME spec:
+  `npm run music:gen` → `mobile/assets/music/*.wav`. Toggle with the ♪ button
+  (both platforms, saved in `kittydrop-music`).
+- **Visual glow-up (shared renderer, both platforms at once)**:
+  - the cup is now a **3D glass jar**: gradient glass, left sheen + right
+    reflection, slow-travelling gleam, golden rim band with rivets & handles,
+    grounded soft shadows — silhouette still matches the physics walls.
+  - **layered backgrounds**: theme gradient sky, ambient glow behind the jar,
+    drifting dust motes inside it, pattern + floating stickers on top.
+  - **cats**: grounding shadows, idle breathing, blink cycle, and a golden
+    aura + orbiting sparkles for rare kitties (tier 9+).
+  - HUD: gradient score card with pulse, mode badge, larger tap targets,
+    press animations everywhere; splash shows a spinning-paw loading beat.
+- **Engine note**: we deliberately stay on React Native + Skia (not Unity /
+  Unreal) — one shared renderer already guarantees identical 60 fps visuals on
+  iOS, Android and web with ~2 MB of assets, and EAS Update ships changes
+  without store review. Safe areas, 44 px targets and screen-reader labels are
+  already part of the UI contract.
+
 ## Themes & plugins (safe playground for humans & AI)
 
 - Every skin is a **plugin**: `src/plugins/<id>/` exports a `Theme` and registers with

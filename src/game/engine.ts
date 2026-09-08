@@ -10,7 +10,7 @@ import { CATS } from "./cats";
 import { renderScene } from "./render";
 import { sfx } from "./sound";
 import { webSprites } from "./spritesWeb";
-import { KittySim, WORLD_H, WORLD_W, type MergeEvent, type SimCallbacks } from "./sim";
+import { KittySim, WORLD_H, WORLD_W, type MergeEvent, type ModeDef, type SimCallbacks } from "./sim";
 import type { LevelDef } from "./levels";
 import type { CupSkin, Trail } from "./shop";
 import { activeTheme } from "../plugins/registry";
@@ -34,6 +34,7 @@ export class KittyEngine {
     private canvas: HTMLCanvasElement,
     cb: EngineCallbacks & { onWin?: () => void },
     level?: LevelDef,
+    mode?: ModeDef,
   ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("no 2d ctx");
@@ -65,7 +66,7 @@ export class KittyEngine {
         }
         cb.onMerge(e);
       },
-    }, level);
+    }, level, mode);
   }
 
   get paused() {
@@ -111,9 +112,30 @@ export class KittyEngine {
     return this.sim.level;
   }
 
-  /** coin booster: shoot the topmost kitty out of the cup */
+  /** coin booster: shoot the topmost kitty out of the cup (auto-aim fallback) */
   shootCat(): boolean {
-    const ok = this.sim.shootTopCat();
+    return this.fire(this.sim.shootTopCat());
+  }
+
+  /* -------- scope mode: player picks WHICH kitty to shoot -------- */
+
+  get aiming(): boolean {
+    return this.sim.aiming;
+  }
+  beginAim() {
+    this.sim.beginAim();
+  }
+  cancelAim() {
+    this.sim.cancelAim();
+  }
+  setAim(clientX: number, clientY: number) {
+    const w = this.toWorld(clientX, clientY);
+    this.sim.setAim(w.x, w.y);
+  }
+  shootAtAim(): boolean {
+    return this.fire(this.sim.shootAtAim());
+  }
+  private fire(ok: boolean): boolean {
     if (ok) {
       sfx.shoot();
       try {
@@ -174,6 +196,14 @@ export class KittyEngine {
   toWorldX(clientX: number): number {
     const rect = this.canvas.getBoundingClientRect();
     return (clientX - rect.left - this.offX) / this.scale;
+  }
+
+  toWorld(clientX: number, clientY: number): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left - this.offX) / this.scale,
+      y: (clientY - rect.top - this.offY) / this.scale,
+    };
   }
 
   /* ---------- input ---------- */

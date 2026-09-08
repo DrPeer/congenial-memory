@@ -3,6 +3,8 @@ import CatIcon from "./components/CatIcon";
 import Game from "./components/Game";
 import { CATS } from "./game/cats";
 import { sfx } from "./game/sound";
+import { music } from "./game/music";
+import { MODE_LIST, getMode, type ModeDef } from "./game/sim";
 import { LEVELS, getLevel } from "./game/levels";
 import { EQUIP_KEY, OWNED_KEY, type Equip } from "./game/shop";
 import { setOwnedSkins } from "./plugins/registry";
@@ -19,8 +21,31 @@ const MISSIONS_KEY = "kittydrop-missions";
 const BEST_KEY = "kittydrop-best";
 const THEME_KEY = "kittydrop-theme";
 
+const PROFILE_KEY = "kittydrop-profile";
+const MODE_KEY = "kittydrop-mode";
+const MUSIC_KEY = "kittydrop-music";
+
 export default function App() {
-  const [screen, setScreen] = useState<"menu" | "game">("menu");
+  const [screen, setScreen] = useState<"splash" | "menu" | "game">("splash");
+  const [splashReady, setSplashReady] = useState(false);
+  const [profile, setProfile] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(PROFILE_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginName, setLoginName] = useState("");
+  const [mode, setMode] = useState<ModeDef>(() => {
+    try {
+      return getMode(localStorage.getItem(MODE_KEY));
+    } catch {
+      return getMode(null);
+    }
+  });
+  const [musicOn, setMusicOn] = useState(true);
+  const [entered, setEntered] = useState(false);
   const [best, setBest] = useState<number>(() => {
     try {
       return Number(localStorage.getItem(BEST_KEY) || 0);
@@ -75,6 +100,55 @@ export default function App() {
   useEffect(() => {
     setOwnedSkins(owned);
   }, [owned]);
+
+  // splash loading beat: spinning paw, then the buttons appear
+  useEffect(() => {
+    const t = window.setTimeout(() => setSplashReady(true), 750);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // menu music (+ re-sync the music toggle when coming back from a run)
+  useEffect(() => {
+    if (screen !== "menu" || !entered) return;
+    let on = true;
+    try {
+      on = localStorage.getItem(MUSIC_KEY) !== "0";
+    } catch {
+      /* ignore */
+    }
+    setMusicOn(on);
+    music.setEnabled(on);
+    music.playTrack("menu");
+  }, [screen, entered]);
+
+  const enterMenu = useCallback(() => {
+    sfx.unlock();
+    setEntered(true);
+    setScreen("menu");
+  }, []);
+
+  const pickMode = useCallback((m: ModeDef) => {
+    setMode(m);
+    sfx.pop(1.1);
+    try {
+      localStorage.setItem(MODE_KEY, m.id);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const saveProfile = useCallback(() => {
+    const name = loginName.trim().slice(0, 14);
+    if (!name) return;
+    setProfile(name);
+    try {
+      localStorage.setItem(PROFILE_KEY, name);
+    } catch {
+      /* ignore */
+    }
+    setLoginOpen(false);
+    enterMenu();
+  }, [loginName, enterMenu]);
 
   const updateOwned = useCallback((ids: string[]) => {
     setOwned(ids);
@@ -176,6 +250,92 @@ export default function App() {
     }
   }, []);
 
+  if (screen === "splash") {
+    return (
+      <div
+        className="relative flex h-full w-full flex-col items-center justify-center gap-6 overflow-hidden px-6"
+        style={{ background: `linear-gradient(to bottom, ${theme.hostBg}, ${theme.hostBgMid}, ${theme.hostBgEnd})` }}
+      >
+        {/* floating deco */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-25">
+          {(["pawprint", "heart", "sparkle", "yarn", "pawprint", "flower"] as const).map((g, i) => (
+            <span key={i} className="anim-float absolute" style={{ left: `${(i * 17 + 6) % 88}%`, top: `${(i * 29 + 10) % 85}%`, animationDelay: `${i * 0.4}s` }}>
+              <Icon id={g} size={26 + (i % 3) * 8} />
+            </span>
+          ))}
+        </div>
+
+        {/* logo */}
+        <div className="relative z-10 flex flex-col items-center text-center">
+          <div className="anim-wiggle rounded-full bg-white/60 p-4 shadow-2xl">
+            <CatIcon tier={6} size={110} />
+          </div>
+          <h1 className="text-stroke mt-3 text-6xl font-bold leading-none text-[#ff5c8a] drop-shadow-[0_5px_0_#fff]">
+            Kitty Drop
+          </h1>
+          <p className="mt-2 text-sm font-semibold text-[#a0506e]">Merge fluffy kitties · Make the Royal Chonk!</p>
+        </div>
+
+        {/* loading / entry */}
+        <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-3">
+          {!splashReady ? (
+            <div className="flex flex-col items-center gap-2 text-[#a0506e]">
+              <span className="animate-spin"><Icon id="pawprint" size={34} /></span>
+              <span className="text-xs font-bold tracking-wide">warming up the whiskers…</span>
+            </div>
+          ) : loginOpen ? (
+            <div className="anim-pop w-full rounded-3xl border-4 border-white bg-white/85 p-4 shadow-xl">
+              <div className="mb-2 text-center text-xs font-bold tracking-[0.25em] text-[#c46b8f]">YOUR NAME</div>
+              <input
+                autoFocus
+                value={loginName}
+                onChange={(e) => setLoginName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveProfile()}
+                maxLength={14}
+                placeholder="e.g. Mochi"
+                className="w-full rounded-2xl border-2 border-[#ffd6e7] bg-white px-4 py-3 text-center text-base font-bold text-[#7a3b55] outline-none focus:border-[#ff8fb0]"
+                aria-label="Player name"
+              />
+              <div className="mt-2 text-center text-[10px] font-semibold text-[#b08a9c]">
+                saved on this device only — no account, no server
+              </div>
+              <button
+                onClick={saveProfile}
+                disabled={!loginName.trim()}
+                className="btn-cute mt-3 w-full bg-gradient-to-b from-[#ff8fb0] to-[#ff5c8a] py-3 text-lg text-white disabled:opacity-40"
+              >
+                SAVE & PLAY
+              </button>
+            </div>
+          ) : (
+            <>
+              {profile && (
+                <button
+                  onClick={enterMenu}
+                  className="btn-cute anim-pop w-full bg-gradient-to-b from-[#ff8fb0] to-[#ff5c8a] py-4 text-xl text-white"
+                >
+                  <span className="inline-flex items-center gap-2"><Icon id="crown" size={20} /> CONTINUE, {profile.toUpperCase()}</span>
+                </button>
+              )}
+              <button
+                onClick={enterMenu}
+                className={`btn-cute w-full py-3.5 text-lg ${profile ? "bg-white/85 text-[#a0506e]" : "anim-pop bg-gradient-to-b from-[#7ed8b4] to-[#4ec9a5] text-white"}`}
+              >
+                <span className="inline-flex items-center gap-2"><Icon id="pawprint" size={20} /> PLAY AS GUEST</span>
+              </button>
+              <button
+                onClick={() => setLoginOpen(true)}
+                className="btn-cute w-full bg-white/85 py-3 text-sm font-bold text-[#a0506e]"
+              >
+                <span className="inline-flex items-center gap-2"><Icon id="home" size={16} /> {profile ? "CHANGE NAME" : "LOGIN"}</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (screen === "game") {
     return (
       <div className="h-full w-full">
@@ -189,6 +349,7 @@ export default function App() {
           level={getLevel(levelId)}
           onSelectLevel={selectLevel}
           equip={equip}
+          mode={mode}
         />
       </div>
     );
@@ -223,6 +384,11 @@ export default function App() {
           Kitty Drop
         </h1>
         <p className="mt-2 text-sm font-semibold text-[#a0506e]">Merge fluffy kitties · Make the Royal Chonk!</p>
+        {profile && (
+          <div className="mt-1.5 flex items-center gap-1 rounded-full bg-white/80 px-3 py-0.5 text-xs font-bold text-[#7a3b55] shadow">
+            <Icon id="crown" size={12} /> Hi, {profile}!
+          </div>
+        )}
       </div>
 
       {/* hero cat */}
@@ -248,12 +414,32 @@ export default function App() {
 
       {/* buttons */}
       <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3">
-        <button
-          onClick={() => setShopOpen(true)}
-          className="btn-cute flex items-center gap-2 bg-[#ffd76a] px-5 py-2 text-sm font-bold text-[#7a5210]"
-        >
-          <Icon id="basket" size={18} /> SHOP · <Icon id="coin" size={14} /> {coins.toLocaleString()}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShopOpen(true)}
+            className="btn-cute flex items-center gap-2 bg-[#ffd76a] px-5 py-2 text-sm font-bold text-[#7a5210]"
+          >
+            <Icon id="basket" size={18} /> SHOP · <Icon id="coin" size={14} /> {coins.toLocaleString()}
+          </button>
+          <button
+            onClick={() => {
+              const v = !musicOn;
+              setMusicOn(v);
+              try {
+                localStorage.setItem(MUSIC_KEY, v ? "1" : "0");
+              } catch {
+                /* ignore */
+              }
+              music.setEnabled(v);
+              if (v) music.playTrack("menu");
+            }}
+            className="btn-cute flex h-10 items-center gap-1 bg-white/85 px-3 text-sm font-bold"
+            style={{ color: musicOn ? "#ff5c8a" : "#cbb8c4" }}
+            aria-label="Toggle background music"
+          >
+            ♪ {musicOn ? "ON" : "OFF"}
+          </button>
+        </div>
         <div className="flex flex-wrap justify-center gap-2">
           {LEVELS.map((l) => {
             const open = unlocked.includes(l.id);
@@ -312,15 +498,39 @@ export default function App() {
             <Icon id="crown" size={14} /> Best: {best.toLocaleString()}
           </div>
         )}
+        {/* difficulty modes */}
+        <div className="w-full">
+          <div className="mb-1 text-center text-[10px] font-bold tracking-[0.25em] text-[#c46b8f]">CHOOSE YOUR MODE</div>
+          <div className="grid grid-cols-3 gap-2">
+            {MODE_LIST.map((m) => {
+              const active = m.id === mode.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => pickMode(m)}
+                  className={`btn-cute flex flex-col items-center gap-0.5 rounded-2xl border-4 px-1.5 py-2 text-center transition-transform ${active ? "scale-[1.04] border-white shadow-lg" : "border-transparent opacity-70"}`}
+                  style={{ backgroundColor: active ? m.color : "#ffffffcc" }}
+                  aria-pressed={active}
+                >
+                  <span className={`text-sm font-bold ${active ? "text-white" : "text-[#7a3b55]"}`}>{m.name}</span>
+                  <span className={`text-[9px] font-semibold leading-tight ${active ? "text-white/90" : "text-[#a0506e]"}`}>
+                    {m.id === "easy" ? "long fuse · 0.8×" : m.id === "hard" ? "short fuse · 1.5×" : "classic · 1×"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <button
           onClick={() => {
             sfx.unlock();
             sfx.meow(1.1);
             setScreen("game");
           }}
-          className="btn-cute w-full bg-gradient-to-b from-[#ff8fb0] to-[#ff5c8a] py-4 text-2xl text-white"
+          className="btn-cute w-full py-4 text-2xl text-white"
+          style={{ background: `linear-gradient(to bottom, ${mode.color}, ${mode.color}dd)` }}
         >
-          <span className="inline-flex items-center gap-2">PLAY <Icon id="pawprint" size={22} /></span>
+          <span className="inline-flex items-center gap-2">PLAY · {mode.name} <Icon id="pawprint" size={22} /></span>
         </button>
       </div>
       <Shop
