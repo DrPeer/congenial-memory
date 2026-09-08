@@ -75,6 +75,19 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
   and plays a headless sim smoke; add `--full` to also Metro-export both OS bundles).
 - AI agents: read [`AGENTS.md`](AGENTS.md) first — invariants, recipes, ship commands.
 
+## Play/test in ANY phone browser (no install, no Arena needed)
+
+- The web build is a single self-contained HTML file, published at `docs/index.html`.
+- Public CDN link (works on cellular, anywhere):
+  `https://cdn.jsdelivr.net/gh/DrPeer/congenial-memory@arena/01a07d54-congenial-memory/docs/index.html`
+  (CDN caches briefly — a fresh publish shows up within minutes.)
+- Optional permanent short URL: enable GitHub Pages once — repo **Settings → Pages →
+  Deploy from a branch → branch `arena/01a07d54-congenial-memory`, folder `/docs`** — then the
+  game lives at `https://drpeer.github.io/congenial-memory/`.
+- After changing the game, republish with: `npm run pages:publish` (builds, commits + pushes `docs/index.html`).
+- Note: Arena's in-chat live preview only renders *inside* Arena's UI; plain phone browsers
+  need one of the URLs above.
+
 ## Architecture
 
 ```
