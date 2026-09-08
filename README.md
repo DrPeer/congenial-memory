@@ -178,12 +178,28 @@ Same page can push the build to TestFlight later via `eas submit`.
 `mobile/eas.json` profiles: `development` (dev client), `preview` (installable .ipa / .apk),
 `simulator` (Mac-only simulator build), `production` (store submission).
 
-### Test on an iPhone with no build at all
+### Test on a phone (no build, no accounts)
 
-`npm run mobile` + Expo Go is the intended zero-friction test loop. The production web build is
-also a single self-contained html file (`dist/index.html`): host it anywhere (or
-`npm run preview -- --host`) and iPhone Safari → *Share → Add to Home Screen* gives you a
-full-screen, app-icon experience of the exact same game.
+Three ways, all run **from your own PC** so nothing expires or gets token-gated:
+
+1. **Expo Go — the real app shell (recommended).**
+   `npm run mobile`, scan the QR. Phone and PC on the same Wi‑Fi; on cellular / strict
+   networks use `npm run mobile -- --tunnel`.
+2. **Safari on the same Wi‑Fi.**
+   `npm run preview:phone`, then open `http://<your-PC-LAN-IP>:4173` on the phone and
+   *Share → Add to Home Screen* for a full-screen app-icon experience.
+3. **Safari on cellular / anywhere — free public tunnel, no account:**
+
+   ```bash
+   npm run preview:phone                              # terminal 1
+   npx cloudflared tunnel --url http://127.0.0.1:4173 # terminal 2
+   ```
+
+   Open the printed `https://….trycloudflare.com` URL on the phone.
+
+> Preview links hosted by a cloud dev sandbox (e.g. the one shown inside an Arena session)
+> are session-scoped and access-token gated — fine for a quick look while the session is
+> awake, useless afterwards. The three commands above are the durable paths.
 
 ## Releasing to the stores (later)
 
