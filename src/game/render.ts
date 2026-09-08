@@ -44,7 +44,7 @@ export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: Render
 
   drawShots(ctx, sim, now);
   drawDropper(ctx, sim, now);
-  drawDeadLine(ctx, sim, now);
+  drawDeadLine(ctx, sim, now, opts);
   drawParticles(ctx, sim, now, opts);
   drawPopups(ctx, sim, now);
 }
@@ -153,7 +153,7 @@ function drawCup(ctx: Ctx2D, sim: KittySim, opts: RenderOpts) {
   ctx.restore();
 }
 
-function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number) {
+function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts) {
   const DEAD_LINE_Y = sim.deadLineY;
   ctx.save();
   ctx.setLineDash([10, 8]);
@@ -193,7 +193,12 @@ function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number) {
     ctx.textBaseline = "middle";
     ctx.fillText(String(secs), cx, cy + 1);
     ctx.font = "bold 14px Fredoka, sans-serif";
-    ctx.fillText("⚠️ TOO FULL! ⚠️", WORLD_W / 2, DEAD_LINE_Y - 10);
+    ctx.fillText("TOO FULL!", WORLD_W / 2 + 12, DEAD_LINE_Y - 10);
+    const alertImg = opts.sprites?.get("alert") ?? null;
+    if (alertImg) {
+      ctx.drawImage(alertImg, WORLD_W / 2 - 34, DEAD_LINE_Y - 20, 20, 20);
+      ctx.drawImage(alertImg, WORLD_W / 2 + 26, DEAD_LINE_Y - 20, 20, 20);
+    }
   }
   ctx.restore();
 }

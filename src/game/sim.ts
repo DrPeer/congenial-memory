@@ -31,6 +31,8 @@ export const BOOST_SHOOT_COST = 8;
 export const BOOST_RAISE_COST = 12;
 export const MAX_CUP_LIFT = 120;
 export const CUP_LIFT_STEP = 60;
+/** the raise perk is temporary: the cup relaxes back after this long */
+export const RAISE_DURATION_MS = 20000;
 /** how long an overfull cup survives before game over (the countdown) */
 export const DANGER_FUSE_MS = 1800;
 
@@ -133,6 +135,9 @@ export class KittySim {
   dropCount = 0;
   /** cup stretch bought via the raise booster (raises rim + danger line) */
   cupLift = 0;
+  private liftUntil = 0;
+  /** ms of raised-cup time left (HUD shows it) */
+  raiseLeft = 0;
   /** kitties launched out by the shoot booster (renderer animates them) */
   shots: Shot[] = [];
   /** coins minted this run */
@@ -389,7 +394,10 @@ export class KittySim {
   /** Coin booster: stretch the cup upward (rim + danger line rise). */
   raiseCup(): boolean {
     if (this.over || this.cupLift >= MAX_CUP_LIFT) return false;
+    const now = performance.now();
     this.cupLift += CUP_LIFT_STEP;
+    this.liftUntil = Math.max(now, this.liftUntil) + RAISE_DURATION_MS;
+    this.raiseLeft = this.liftUntil - now;
     this.addPopup(WORLD_W / 2, this.cupTop - 10, "CUP UP!", "#2fb78a", 26, 1400);
     this.burst(WORLD_W / 2, this.cupTop + 10, 18, ["✨", "⭐", "✨"]);
     return true;
@@ -512,6 +520,15 @@ export class KittySim {
     }
 
     this.shots = this.shots.filter((sh) => t - sh.t0 < 700);
+
+    // raised cup is a timed perk: relax back down when the fuse runs out
+    if (this.cupLift > 0) {
+      this.raiseLeft = Math.max(0, this.liftUntil - performance.now());
+      if (this.raiseLeft <= 0) {
+        this.cupLift = 0;
+        this.addPopup(WORLD_W / 2, this.cupTop + 30, "cup relaxed…", "#8a977e", 18, 1200);
+      }
+    }
 
     // jelly spring update
     for (const d of this.cats.values()) {

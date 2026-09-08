@@ -10,9 +10,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { CATS } from "../../../src/game/cats";
 import { LEVELS } from "../../../src/game/levels";
+import { LEVEL_ICON } from "../../../src/game/sprites";
 import { missionStore } from "./missionsNative";
 import { activeTheme, getThemes } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
+import Icon, { ICON_SRC } from "./Icon";
 import { sfx } from "./sounds";
 
 interface Props {
@@ -25,7 +27,7 @@ interface Props {
   onPlay: () => void;
 }
 
-const DECO = ["🐾", "🧶", "💗", "🐟", "", "✨", "", "💗"];
+const DECO = ["pawprint", "yarn", "heart", "fish", "pawprint", "sparkle", "pawprint", "heart"];
 
 export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, onSelectLevel, onPlay }: Props) {
   const insets = useSafeAreaInsets();
@@ -72,8 +74,9 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
       {/* floating deco */}
       <View pointerEvents="none" style={styles.deco}>
         {DECO.map((g, i) => (
-          <Animated.Text
+          <Animated.Image
             key={i}
+            source={ICON_SRC[g] ?? ICON_SRC.pawprint}
             style={[
               styles.decoGlyph,
               {
@@ -82,14 +85,15 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
                 transform: [{ translateY: float }],
               },
             ]}
-          >
-            {g}
-          </Animated.Text>
+            resizeMode="contain"
+          />
         ))}
       </View>
 
       <View style={styles.titleWrap}>
-        <Text style={styles.titleCat}>🐱</Text>
+        <Canvas style={{ width: 64, height: 64 }}>
+          <Picture picture={catPicture(2, 64)} />
+        </Canvas>
         <Text style={styles.title}>Kitty Drop</Text>
         <Text style={styles.tagline}>Merge fluffy kitties · Make the Royal Chonk!</Text>
       </View>
@@ -109,15 +113,28 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
 
       <View style={styles.howto}>
         <Text style={styles.howtoTitle}>HOW TO PLAY</Text>
-        <Text style={styles.howtoLine}>👆 Drag to aim, release to drop a kitty</Text>
-        <Text style={styles.howtoLine}>💕 Two matching kitties merge into a bigger one</Text>
-        <Text style={styles.howtoLine}>⚡ Quick chain merges = combo multipliers</Text>
-        <Text style={styles.howtoLine}>️ Don't let the basket overflow!</Text>
+        <View style={styles.howtoLineRow}>
+          <Icon id="pawprint" size={16} />
+          <Text style={styles.howtoLine}>Drag to aim, release to drop a kitty</Text>
+        </View>
+        <View style={styles.howtoLineRow}>
+          <Icon id="heart" size={16} />
+          <Text style={styles.howtoLine}>Two matching kitties merge into a bigger one</Text>
+        </View>
+        <View style={styles.howtoLineRow}>
+          <Icon id="sparkle" size={16} />
+          <Text style={styles.howtoLine}>Quick chain merges = combo multipliers</Text>
+        </View>
+        <View style={styles.howtoLineRow}>
+          <Icon id="alert" size={16} />
+          <Text style={styles.howtoLine}>Don't let the basket overflow!</Text>
+        </View>
       </View>
 
       <View style={styles.cta}>
-        <View style={styles.coinChip}>
-          <Text style={styles.coinChipText}>🪙 {coins.toLocaleString()} coins</Text>
+        <View style={[styles.coinChip, { flexDirection: "row", alignItems: "center", gap: 6 }]}>
+          <Icon id="coin" size={16} />
+          <Text style={styles.coinChipText}>{coins.toLocaleString()} coins</Text>
         </View>
         <View style={styles.themeRow}>
           {LEVELS.map((l) => {
@@ -130,9 +147,10 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
                 style={[styles.themeChip, active && styles.themeChipActive, !open && { opacity: 0.5 }]}
                 onPress={() => onSelectLevel(l.id)}
               >
-                <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
-                  {open ? l.emoji : "🔒"} {l.name}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Icon id={open ? (LEVEL_ICON[l.id] ?? "flower") : "lock"} size={14} />
+                  <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>{l.name}</Text>
+                </View>
               </Pressable>
             );
           })}
@@ -148,7 +166,10 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
                 <Text style={styles.missionText}>
                   {m.text} ({m.value}/{m.goal})
                 </Text>
-                <Text style={styles.missionReward}>+{m.reward}🪙</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                  <Text style={styles.missionReward}>+{m.reward}</Text>
+                  <Icon id="coin" size={10} />
+                </View>
               </View>
             ))}
         </View>
@@ -159,15 +180,28 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
               style={[styles.themeChip, t.id === themeId && styles.themeChipActive]}
               onPress={() => onTheme(t.id)}
             >
-              <Text style={[styles.themeChipText, t.id === themeId && styles.themeChipTextActive]}>
-                {t.emoji} {t.name}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: t.hostBg,
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.7)",
+                  }}
+                />
+                <Text style={[styles.themeChipText, t.id === themeId && styles.themeChipTextActive]}>{t.name}</Text>
+              </View>
             </Pressable>
           ))}
         </View>
         {best > 0 && (
           <View style={styles.bestBadge}>
-            <Text style={styles.bestBadgeText}>👑 Best: {best.toLocaleString()}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+              <Icon id="crown" size={14} />
+              <Text style={styles.bestBadgeText}>Best: {best.toLocaleString()}</Text>
+            </View>
           </View>
         )}
         <Pressable
@@ -178,7 +212,10 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
             onPlay();
           }}
         >
-          <Text style={styles.playText}>PLAY 🐾</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={styles.playText}>PLAY</Text>
+            <Icon id="pawprint" size={24} />
+          </View>
         </Pressable>
       </View>
     </View>
@@ -188,7 +225,7 @@ export default function MenuScreen({ best, themeId, onTheme, levelId, unlocked, 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#ffd6e7", alignItems: "center", justifyContent: "space-between" },
   deco: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.3 },
-  decoGlyph: { position: "absolute", fontSize: 30 },
+  decoGlyph: { position: "absolute", width: 30, height: 30 },
   titleWrap: { alignItems: "center", marginTop: 16 },
   titleCat: { fontSize: 60 },
   title: { fontSize: 46, fontWeight: "800", color: "#ff5c8a", textShadowColor: "#fff", textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
@@ -200,6 +237,7 @@ const styles = StyleSheet.create({
   howto: { width: "100%", maxWidth: 380, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 24, borderWidth: 4, borderColor: "#fff", padding: 16, gap: 6 },
   howtoTitle: { textAlign: "center", fontSize: 12, fontWeight: "800", letterSpacing: 4, color: "#c46b8f", marginBottom: 2 },
   howtoLine: { fontSize: 14, color: "#7a3b55" },
+  howtoLineRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   cta: { width: "100%", maxWidth: 380, alignItems: "center", gap: 12 },
   themeRow: { flexDirection: "row", gap: 8 },
   missionBox: { width: "100%", maxWidth: 380, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 },

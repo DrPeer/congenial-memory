@@ -59,6 +59,17 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 
 ---
 
+## Custom icon pack (no system emoji anywhere)
+
+- Every glyph in the UI is a **generated sticker icon** (coin, target, basket, TV, paw,
+  speaker, pause/play, home, lock, crown, trophy, sad-cat, party, alert, flower, shell,
+  mountain…) sliced from magenta sheets into `src/assets/sprites/` — identical art on
+  Windows, Android, iOS, web. In-game particles/decor/alerts use the same bank.
+- The 🧺 **raise-cup perk is now timed**: 20 s per purchase (`RAISE_DURATION_MS`), the HUD
+  button shows the countdown, then the cup relaxes back down.
+- Phone-first UI: 44 px touch targets, `touch-action: manipulation`, no tap highlight,
+  scroll-safe modals, safe-area padding on both platforms.
+
 ## Worlds, revive & missions (progression)
 
 - **13 hand-detailed kitties** now (plushie stitch seams, fur tufts, paw toes, tails,

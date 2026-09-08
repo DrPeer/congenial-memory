@@ -27,8 +27,10 @@ import {
   WORLD_W,
   type MergeEvent,
 } from "../../../src/game/sim";
+import { LEVEL_ICON } from "../../../src/game/sprites";
 import { activeTheme } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
+import Icon from "./Icon";
 import { missionStore } from "./missionsNative";
 import { nativeSprites } from "./spritesNative";
 import { sfx } from "./sounds";
@@ -83,6 +85,11 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
   const [adCard, setAdCard] = useState<FakeAd | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dangerSeen = useRef(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 500);
+    return () => clearInterval(t);
+  }, []);
 
   const feed = useCallback((ev: MissionEvent) => {
     const done = missionStore.apply(ev);
@@ -93,7 +100,7 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
         AsyncStorage.setItem("kittydrop-coins", String(v)).catch(() => {});
         return v;
       });
-      setToast(done.map((m) => `✅ ${m.text}  +${m.reward}🪙`).join("  ·  "));
+      setToast(done.map((m) => `${m.text}  +${m.reward} coins`).join("  ·  "));
       setTimeout(() => setToast(null), 2800);
     }
   }, []);
@@ -182,7 +189,7 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
       sfx.fanfare();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       bannerId.current++;
-      setBanner({ id: bannerId.current, text: "MEGA MEOW!!", sub: `+${e.points} 👑`, color: "#ffb300" });
+      setBanner({ id: bannerId.current, text: "MEGA MEOW!!", sub: `+${e.points} MEGA`, color: "#ffb300" });
       return;
     }
     if (e.newTier !== null) sfx.meow(e.newTier);
@@ -364,10 +371,14 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
             </Text>
           </View>
           <View style={styles.bestChip}>
-            <Text style={styles.bestChipText}>👑 BEST {Math.max(best, score).toLocaleString()}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Icon id="crown" size={12} />
+              <Text style={styles.bestChipText}>BEST {Math.max(best, score).toLocaleString()}</Text>
+            </View>
           </View>
-          <View style={styles.coinChip}>
-            <Text style={styles.coinChipText}>🪙 {coins.toLocaleString()}</Text>
+          <View style={[styles.coinChip, { flexDirection: "row", alignItems: "center", gap: 4 }]}>
+            <Icon id="coin" size={14} />
+            <Text style={styles.coinChipText}>{coins.toLocaleString()}</Text>
           </View>
         </View>
         <View style={styles.hudRight}>
@@ -385,25 +396,35 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
               onPress={shootBooster}
               disabled={coins < BOOST_SHOOT_COST || !!over || paused}
             >
-              <Text style={styles.hudBtnText}>🎯</Text>
-              <Text style={styles.boostCost}>🪙{BOOST_SHOOT_COST}</Text>
+              <Icon id="target" size={22} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                <Icon id="coin" size={10} />
+                <Text style={styles.boostCost}>{BOOST_SHOOT_COST}</Text>
+              </View>
             </Pressable>
             <Pressable
               style={[styles.boostBtn, { backgroundColor: "#c9f2df" }, (coins < BOOST_RAISE_COST || !!over || paused) && styles.boostOff]}
               onPress={raiseBooster}
               disabled={coins < BOOST_RAISE_COST || !!over || paused}
             >
-              <Text style={styles.hudBtnText}>🧺</Text>
-              <Text style={styles.boostCost}>🪙{BOOST_RAISE_COST}</Text>
+              <Icon id="basket" size={22} />
+              {simRef.current && simRef.current.raiseLeft > 0 ? (
+                <Text style={styles.boostCost}>{Math.ceil(simRef.current.raiseLeft / 1000)}s</Text>
+              ) : (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                  <Icon id="coin" size={10} />
+                  <Text style={styles.boostCost}>{BOOST_RAISE_COST}</Text>
+                </View>
+              )}
             </Pressable>
             <Pressable style={styles.hudBtn} onPress={() => setShowChain((s) => !s)}>
-              <Text style={styles.hudBtnText}>🐾</Text>
+              <Icon id="pawprint" size={22} />
             </Pressable>
             <Pressable style={styles.hudBtn} onPress={toggleMute}>
-              <Text style={styles.hudBtnText}>{muted ? "🔇" : "🔊"}</Text>
+              <Icon id={muted ? "speakeroff" : "speaker"} size={22} />
             </Pressable>
             <Pressable style={styles.hudBtn} onPress={togglePause}>
-              <Text style={styles.hudBtnText}>{paused ? "▶️" : "⏸️"}</Text>
+              <Icon id={paused ? "play" : "pause"} size={22} />
             </Pressable>
           </View>
         </View>
@@ -483,9 +504,12 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
               </View>
             ))}
             <View style={styles.chainMega}>
-              <Text style={styles.chainMegaText}>
-                👑 Two Royal Chonks merging = +2000 MEGA MEOW bonus! Combos multiply points ×1.5 each.
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon id="crown" size={16} />
+                <Text style={styles.chainMegaText}>
+                  Two Royal Chonks merging = +2000 MEGA MEOW bonus! Combos multiply points ×1.5 each.
+                </Text>
+              </View>
             </View>
           </View>
           <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={() => setShowChain(false)}>
@@ -496,23 +520,33 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
 
       {paused && !over && (
         <Modal>
-          <Text style={styles.modalEmoji}>😴</Text>
+          <View style={{ alignItems: "center", marginVertical: 6 }}>
+            <Icon id="pause" size={56} />
+          </View>
           <Text style={styles.modalTitle}>Paused</Text>
           <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={togglePause}>
             <Text style={styles.btnTextWhite}>▶ Resume</Text>
           </Pressable>
           <Pressable style={[styles.btn, { backgroundColor: "#ffd88a" }]} onPress={restart}>
-            <Text style={styles.btnTextDark}>🔄 Restart</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon id="play" size={18} />
+              <Text style={styles.btnTextDark}>Restart</Text>
+            </View>
           </Pressable>
           <Pressable style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={onExit}>
-            <Text style={styles.btnTextDark}>🏠 Menu</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon id="home" size={18} />
+              <Text style={styles.btnTextDark}>Menu</Text>
+            </View>
           </Pressable>
         </Modal>
       )}
 
       {over && (
         <Modal>
-          <Text style={styles.modalEmoji}>{over.isBest ? "🏆" : "😿"}</Text>
+          <View style={{ alignItems: "center", marginVertical: 6 }}>
+            <Icon id={over.isBest ? "trophy" : "sadcat"} size={56} />
+          </View>
           <Text style={styles.modalTitle}>{over.isBest ? "NEW BEST!" : "Too many kitties!"}</Text>
           <Text style={styles.modalSub}>The basket overflowed with fluff</Text>
           <View style={styles.finalBox}>
@@ -531,8 +565,12 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
           </View>
           {!reviveUsed && (
             <>
-              <Pressable style={[styles.btn, { backgroundColor: "#57c6ff" }]} onPress={() => startAd("revive")}>
-                <Text style={styles.btnTextWhite}>📺 Watch ad → revive & continue</Text>
+              <Pressable
+                style={[styles.btn, { backgroundColor: "#57c6ff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }]}
+                onPress={() => startAd("revive")}
+              >
+                <Icon id="tv" size={22} />
+                <Text style={styles.btnTextWhite}>Watch ad → revive & continue</Text>
               </Pressable>
               <Pressable
                 style={[styles.btn, { backgroundColor: "#ffd76a" }, coins < REVIVE_COST && styles.boostOff]}
@@ -546,21 +584,36 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
                   }
                 }}
               >
-                <Text style={styles.btnTextDark}>🪙 {REVIVE_COST} → revive & continue</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Icon id="coin" size={20} />
+                  <Text style={styles.btnTextDark}>{REVIVE_COST} → revive & continue</Text>
+                </View>
               </Pressable>
             </>
           )}
           {level.retryNeedsAd ? (
-            <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={() => startAd("retry")}>
-              <Text style={styles.btnTextWhite}>📺 Watch ad → retry {level.name}</Text>
+            <Pressable
+              style={[styles.btn, { backgroundColor: "#ff8fb0", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }]}
+              onPress={() => startAd("retry")}
+            >
+              <Icon id="tv" size={22} />
+              <Text style={styles.btnTextWhite}>Watch ad → retry {level.name}</Text>
             </Pressable>
           ) : (
-            <Pressable style={[styles.btn, { backgroundColor: "#ff8fb0" }]} onPress={restart}>
-              <Text style={styles.btnTextWhite}>🐱 Play Again</Text>
+            <Pressable
+              style={[styles.btn, { backgroundColor: "#ff8fb0", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }]}
+              onPress={restart}
+            >
+              <Icon id="pawprint" size={22} />
+              <Text style={styles.btnTextWhite}>Play Again</Text>
             </Pressable>
           )}
-          <Pressable style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={onExit}>
-            <Text style={styles.btnTextDark}>🏠 Menu</Text>
+          <Pressable
+            style={[styles.btn, { backgroundColor: "#ffffff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 }]}
+            onPress={onExit}
+          >
+            <Icon id="home" size={20} />
+            <Text style={styles.btnTextDark}>Menu</Text>
           </Pressable>
         </Modal>
       )}
@@ -568,16 +621,21 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
       {/* level complete → choose next world */}
       {win && !over && (
         <Modal>
-          <Text style={styles.modalEmoji}>🎉</Text>
+          <View style={{ alignItems: "center", marginVertical: 6 }}>
+            <Icon id="party" size={56} />
+          </View>
           <Text style={styles.modalTitle}>LEVEL COMPLETE!</Text>
           <Text style={styles.modalSub}>
             {level.emoji} {level.name} cleared — pick your next world:
           </Text>
           {LEVELS.filter((l) => l.id !== "meadow").map((l) => (
             <Pressable key={l.id} style={[styles.btn, { backgroundColor: "#ffffff" }]} onPress={() => onSelectLevel(l.id)}>
-              <Text style={styles.btnTextDark}>
-                {l.emoji} {l.name} — {l.desc}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Icon id={LEVEL_ICON[l.id] ?? "flower"} size={34} />
+                <Text style={styles.btnTextDark}>
+                  {l.name} — {l.desc}
+                </Text>
+              </View>
             </Pressable>
           ))}
           <Pressable style={[styles.btn, { backgroundColor: "#ffeaf2" }]} onPress={() => setWin(false)}>
@@ -591,7 +649,9 @@ export default function GameScreen({ best, onBest, onExit, level, onSelectLevel 
         <View style={styles.adWrap}>
           <View style={styles.adCard}>
             <Text style={styles.adLabel}>SPONSOR REEL · AD</Text>
-            <Text style={styles.adEmoji}>{adCard.emoji}</Text>
+            <View style={{ marginVertical: 12 }}>
+              <Icon id={adCard.icon} size={72} />
+            </View>
             <Text style={styles.adTitle}>{adCard.title}</Text>
             <Text style={styles.adTag}>{adCard.tagline}</Text>
             <Text style={styles.adLabel}>reward in {ad.left}s…</Text>
@@ -640,7 +700,7 @@ const styles = StyleSheet.create({
   scoreValue: { color: "#fff", fontSize: 24, fontWeight: "800", fontVariant: ["tabular-nums"] },
   coinChip: { borderRadius: 12, backgroundColor: "#ffd76a", paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start" },
   coinChipText: { fontSize: 11, fontWeight: "700", color: "#7a5210" },
-  boostBtn: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 2, borderColor: "#fff" },
+  boostBtn: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 10, minHeight: 44, borderWidth: 2, borderColor: "#fff" },
   boostCost: { fontSize: 9, fontWeight: "800", color: "#28577a", marginLeft: 2 },
   boostOff: { opacity: 0.4 },
   adWrap: { position: "absolute", inset: 0, backgroundColor: "rgba(43,34,51,0.85)", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 60 },
@@ -657,7 +717,7 @@ const styles = StyleSheet.create({
   nextBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#a97c6a", borderRadius: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 8, paddingVertical: 4 },
   nextThumb: { backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999 },
   btnRow: { flexDirection: "row", gap: 6 },
-  hudBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  hudBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   hudBtnText: { fontSize: 16 },
   droppingRow: { alignItems: "center", marginTop: -2 },
   droppingChip: { backgroundColor: "rgba(255,255,255,0.8)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 2 },

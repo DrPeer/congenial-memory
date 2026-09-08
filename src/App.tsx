@@ -5,7 +5,9 @@ import { CATS } from "./game/cats";
 import { sfx } from "./game/sound";
 import { LEVELS, getLevel } from "./game/levels";
 import { MissionStore } from "./game/missions";
+import { LEVEL_ICON } from "./game/sprites";
 import { activeTheme, getThemes, setActiveThemeId } from "./plugins/registry";
+import Icon from "./components/Icon";
 
 const LEVEL_KEY = "kittydrop-level";
 const LEVELS_KEY = "kittydrop-levels";
@@ -129,7 +131,7 @@ export default function App() {
     >
       {/* floating deco */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden text-3xl opacity-30">
-        {["🐾", "🧶", "💗", "🐟", "🐾", "✨", "🐾", "💗"].map((g, i) => (
+        {(["pawprint", "yarn", "heart", "fish", "pawprint", "sparkle", "pawprint", "heart"] as const).map((g, i) => (
           <span
             key={i}
             className="anim-float absolute"
@@ -146,7 +148,7 @@ export default function App() {
 
       {/* title */}
       <div className="relative z-10 mt-4 text-center">
-        <div className="anim-wiggle inline-block text-6xl">🐱</div>
+        <div className="anim-wiggle inline-block"><CatIcon tier={2} size={64} /></div>
         <h1 className="text-stroke mt-1 text-5xl font-bold leading-none text-[#ff5c8a] drop-shadow-[0_4px_0_#fff]">
           Kitty Drop
         </h1>
@@ -167,16 +169,16 @@ export default function App() {
       <div className="relative z-10 w-full max-w-sm rounded-3xl border-4 border-white bg-white/70 p-4 text-sm text-[#7a3b55] shadow-lg backdrop-blur-sm">
         <div className="mb-2 text-center text-xs font-bold tracking-[0.25em] text-[#c46b8f]">HOW TO PLAY</div>
         <ul className="space-y-1.5">
-          <li>👆 Drag to aim, release to drop a kitty</li>
-          <li>💕 Two matching kitties merge into a bigger one</li>
-          <li>⚡ Quick chain merges = combo multipliers</li>
-          <li>⚠️ Don't let the basket overflow!</li>
+          <li className="flex items-center gap-2"><Icon id="pawprint" size={16} /> Drag to aim, release to drop a kitty</li>
+          <li className="flex items-center gap-2"><Icon id="heart" size={16} /> Two matching kitties merge into a bigger one</li>
+          <li className="flex items-center gap-2"><Icon id="sparkle" size={16} /> Quick chain merges = combo multipliers</li>
+          <li className="flex items-center gap-2"><Icon id="alert" size={16} /> Don't let the basket overflow!</li>
         </ul>
       </div>
 
       {/* buttons */}
       <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {LEVELS.map((l) => {
             const open = unlocked.includes(l.id);
             return (
@@ -188,7 +190,7 @@ export default function App() {
                   l.id === levelId ? "bg-[#ff8fb0] text-white" : "bg-white/80 text-[#a0506e]"
                 } ${open ? "" : "opacity-50"}`}
               >
-                {open ? l.emoji : "🔒"} {l.name}
+                <Icon id={open ? (LEVEL_ICON[l.id] ?? "flower") : "lock"} size={14} /> {l.name}
               </button>
             );
           })}
@@ -201,12 +203,15 @@ export default function App() {
                 <span>
                   {m.text} ({m.value}/{m.goal})
                 </span>
-                <span className="text-[#7a5210]">+{m.reward}🪙</span>
+                <span className="flex items-center gap-0.5 text-[#7a5210]">
+                  +{m.reward}
+                  <Icon id="coin" size={10} />
+                </span>
               </div>
             ))}
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {getThemes().map((t) => (
             <button
               key={t.id}
@@ -215,16 +220,20 @@ export default function App() {
                 t.id === themeId ? "bg-[#ff8fb0] text-white" : "bg-white/80 text-[#a0506e]"
               }`}
             >
-              {t.emoji} {t.name}
+              <span
+                className="mr-1 inline-block h-3 w-3 rounded-full border border-white/70 align-[-0.1em]"
+                style={{ backgroundColor: t.hostBg }}
+              />
+              {t.name}
             </button>
           ))}
         </div>
-        <div className="rounded-full bg-[#ffd76a] px-4 py-1 text-sm font-bold text-[#7a5210] shadow-md">
-          🪙 {(Number(localStorage.getItem("kittydrop-coins") || 0) || 0).toLocaleString()} coins
+        <div className="flex items-center gap-1.5 rounded-full bg-[#ffd76a] px-4 py-1 text-sm font-bold text-[#7a5210] shadow-md">
+          <Icon id="coin" size={16} /> {(Number(localStorage.getItem("kittydrop-coins") || 0) || 0).toLocaleString()} coins
         </div>
         {best > 0 && (
           <div className="rounded-full bg-[#ffd88a] px-4 py-1 text-sm font-bold text-[#7a3b55] shadow">
-            👑 Best: {best.toLocaleString()}
+            <Icon id="crown" size={14} /> Best: {best.toLocaleString()}
           </div>
         )}
         <button
@@ -235,7 +244,7 @@ export default function App() {
           }}
           className="btn-cute w-full bg-gradient-to-b from-[#ff8fb0] to-[#ff5c8a] py-4 text-2xl text-white"
         >
-          PLAY 🐾
+          <span className="inline-flex items-center gap-2">PLAY <Icon id="pawprint" size={22} /></span>
         </button>
       </div>
     </div>

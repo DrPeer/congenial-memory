@@ -85,6 +85,9 @@ export class KittyEngine {
   get cupLift() {
     return this.sim.cupLift;
   }
+  get raiseLeft() {
+    return this.sim.raiseLeft;
+  }
   get coinsEarned() {
     return this.sim.coinsEarned;
   }

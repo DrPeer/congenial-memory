@@ -133,3 +133,17 @@ canvas {
   transform: translateY(4px);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 }
+
+/* phone-first: no double-tap zoom, no tap highlight, no pull-to-refresh inside game */
+html,
+body {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+button {
+  touch-action: manipulation;
+}

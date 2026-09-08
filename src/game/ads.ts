@@ -7,16 +7,17 @@
 export const AD_SECONDS = 8;
 
 export interface FakeAd {
-  emoji: string;
+  /** custom icon id (sprite pack) — no system emoji anywhere */
+  icon: string;
   title: string;
   tagline: string;
 }
 
 export const FAKE_ADS: FakeAd[] = [
-  { emoji: "🐟", title: "Tuna Crunchies", tagline: "The snack your cat secretly demands." },
-  { emoji: "🧶", title: "YarnBnB", tagline: "Cozy balls of yarn, rented by the hour." },
-  { emoji: "📦", title: "BoxFort", tagline: "If it fits, they sits. Guaranteed." },
-  { emoji: "🥛", title: "Milk & Co.", tagline: "Fresh cream for distinguished chonks." },
+  { icon: "fish", title: "Tuna Crunchies", tagline: "The snack your cat secretly demands." },
+  { icon: "yarn", title: "YarnBnB", tagline: "Cozy balls of yarn, rented by the hour." },
+  { icon: "basket", title: "BoxFort", tagline: "If it fits, they sits. Guaranteed." },
+  { icon: "drop", title: "Milk & Co.", tagline: "Fresh cream for distinguished chonks." },
 ];
 
 export function pickFakeAd(seed = Math.random()): FakeAd {

@@ -13,6 +13,27 @@ import paw from "../assets/sprites/paw.png";
 import sparkle from "../assets/sprites/sparkle.png";
 import star from "../assets/sprites/star.png";
 import yarn from "../assets/sprites/yarn.png";
+import coin from "../assets/sprites/coin.png";
+import target from "../assets/sprites/target.png";
+import basket from "../assets/sprites/basket.png";
+import tv from "../assets/sprites/tv.png";
+import pawprint from "../assets/sprites/pawprint.png";
+import speaker from "../assets/sprites/speaker.png";
+import speakeroff from "../assets/sprites/speakeroff.png";
+import pause from "../assets/sprites/pause.png";
+import play from "../assets/sprites/play.png";
+import home from "../assets/sprites/home.png";
+import lock from "../assets/sprites/lock.png";
+import trophy from "../assets/sprites/trophy.png";
+import sadcat from "../assets/sprites/sadcat.png";
+import party from "../assets/sprites/party.png";
+import alert from "../assets/sprites/alert.png";
+import flower from "../assets/sprites/flower.png";
+import shell from "../assets/sprites/shell.png";
+import mountain from "../assets/sprites/mountain.png";
+import clover from "../assets/sprites/clover.png";
+import drop from "../assets/sprites/drop.png";
+
 import { SPRITE_IDS, type SpriteBank, type SpriteId } from "./sprites";
 
 const URLS: Record<SpriteId, string> = {
@@ -26,6 +47,26 @@ const URLS: Record<SpriteId, string> = {
   bow,
   cloud,
   pattern,
+  coin,
+  target,
+  basket,
+  tv,
+  pawprint,
+  speaker,
+  speakeroff,
+  pause,
+  play,
+  home,
+  lock,
+  trophy,
+  sadcat,
+  party,
+  alert,
+  flower,
+  shell,
+  mountain,
+  clover,
+  drop,
 };
 
 class WebSpriteBank implements SpriteBank {

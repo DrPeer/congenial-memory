@@ -17,7 +17,28 @@ export type SpriteId =
   | "crown"
   | "bow"
   | "cloud"
-  | "pattern";
+  | "pattern"
+  /* custom UI icon pack (replaces system emoji everywhere) */
+  | "coin"
+  | "target"
+  | "basket"
+  | "tv"
+  | "pawprint"
+  | "speaker"
+  | "speakeroff"
+  | "pause"
+  | "play"
+  | "home"
+  | "lock"
+  | "trophy"
+  | "sadcat"
+  | "party"
+  | "alert"
+  | "flower"
+  | "shell"
+  | "mountain"
+  | "clover"
+  | "drop";
 
 export const SPRITE_IDS: SpriteId[] = [
   "heart",
@@ -30,6 +51,26 @@ export const SPRITE_IDS: SpriteId[] = [
   "bow",
   "cloud",
   "pattern",
+  "coin",
+  "target",
+  "basket",
+  "tv",
+  "pawprint",
+  "speaker",
+  "speakeroff",
+  "pause",
+  "play",
+  "home",
+  "lock",
+  "trophy",
+  "sadcat",
+  "party",
+  "alert",
+  "flower",
+  "shell",
+  "mountain",
+  "clover",
+  "drop",
 ];
 
 export interface SpriteBank {
@@ -50,6 +91,13 @@ export const GLYPH_SPRITE: Record<string, SpriteId> = {
   "🐟": "fish",
   "☁️": "cloud",
   "💨": "cloud",
+};
+
+/** level chip art (custom, not system emoji) */
+export const LEVEL_ICON: Record<string, SpriteId> = {
+  meadow: "flower",
+  beach: "shell",
+  hills: "mountain",
 };
 
 /** the v1 floating-decor slot list, expressed as sprites */
