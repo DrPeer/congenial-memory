@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mobile": "node scripts/start-mobile.mjs",
+    "mobile:live": "node scripts/start-mobile.mjs --live",
+    "mobile:bundle": "node scripts/build-game-bundle.mjs",
+    "mobile:install": "npm --prefix mobile install",
+    "mobile:setup": "npm install && npm --prefix mobile install",
+    "mobile:typecheck": "npm --prefix mobile run typecheck"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",
