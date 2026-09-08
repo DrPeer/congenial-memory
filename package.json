@@ -12,7 +12,10 @@
     "mobile:bundle": "node scripts/build-game-bundle.mjs",
     "mobile:install": "npm --prefix mobile install",
     "mobile:setup": "npm install && npm --prefix mobile install",
-    "mobile:typecheck": "npm --prefix mobile run typecheck"
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "mobile:ipa": "npm --prefix mobile run build:ios",
+    "mobile:ipa:sim": "npm --prefix mobile run build:ios:sim",
+    "mobile:apk": "npm --prefix mobile run build:android"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",

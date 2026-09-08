@@ -144,6 +144,47 @@ mobile/               Expo app: App.tsx shell, app.json, assets
 index.html            web entry (also the template for the mobile bundle)
 ```
 
+## Installable builds (.ipa / .apk)
+
+First, the honest physics of iOS signing — this decides what is possible where:
+
+| You want                                        | What it requires                                                                 | Command                    |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------- |
+| Test on a real phone, **zero accounts**          | nothing (Expo Go)                                                                 | `npm run mobile`           |
+| **Android .apk** anyone can install              | free Expo account only                                                            | `npm run mobile:apk`       |
+| **iOS .ipa for a real iPhone**                   | free Expo account **+ Apple Developer Program ($99/yr)**; built & signed on Expo's cloud Macs (EAS Build) | `npm run mobile:ipa`       |
+| iOS build for the Simulator                      | free Expo account, no Apple account — but only runs inside Xcode's simulator on a Mac | `npm run mobile:ipa:sim`   |
+
+There is deliberately **no `.ipa` in this repo, and none can be produced on Windows or Linux**:
+Apple requires iOS binaries to be compiled *and signed* on macOS with Xcode. EAS Build rents you
+Expo's cloud Macs so you never install Xcode, but the signing certificate still comes from your
+Apple Developer membership. A free Apple ID can only sign builds through Xcode on a Mac you
+physically control (7-day certificates, re-sideloading weekly).
+
+### One-command .ipa (once you have the accounts)
+
+```bash
+npm i -g eas-cli          # once
+eas login                 # free Expo account
+npm run mobile:ipa        # = bundle the game, then: eas build --platform ios --profile preview
+```
+
+On the first build EAS links the project, asks for your Apple Developer credentials **once**,
+generates the certificates/provisioning profile for you, builds on a cloud Mac, and then gives
+you a page with a QR code and a **download link for the `.ipa`** (`preview` profile = internal
+distribution, i.e. ad-hoc signed for the devices whose UDID you registered when prompted).
+Same page can push the build to TestFlight later via `eas submit`.
+
+`mobile/eas.json` profiles: `development` (dev client), `preview` (installable .ipa / .apk),
+`simulator` (Mac-only simulator build), `production` (store submission).
+
+### Test on an iPhone with no build at all
+
+`npm run mobile` + Expo Go is the intended zero-friction test loop. The production web build is
+also a single self-contained html file (`dist/index.html`): host it anywhere (or
+`npm run preview -- --host`) and iPhone Safari → *Share → Add to Home Screen* gives you a
+full-screen, app-icon experience of the exact same game.
+
 ## Releasing to the stores (later)
 
 The shell is already a normal Expo project, so when you're ready:

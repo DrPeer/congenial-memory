@@ -11,7 +11,10 @@
     "android": "npm run bundle && expo start --android",
     "ios": "npm run bundle && expo start --ios",
     "typecheck": "tsc --noEmit",
-    "doctor": "expo-doctor"
+    "doctor": "expo-doctor",
+    "build:ios": "npm run bundle && npx --yes eas-cli build --platform ios --profile preview",
+    "build:ios:sim": "npm run bundle && npx --yes eas-cli build --platform ios --profile simulator",
+    "build:android": "npm run bundle && npx --yes eas-cli build --platform android --profile preview"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
