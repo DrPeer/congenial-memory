@@ -19,7 +19,8 @@
     "mobile:apk": "npm --prefix mobile run build:android",
     "check": "node scripts/check.mjs",
     "plugin:new": "node scripts/new-plugin.mjs",
-    "sprites:slice": "node scripts/slice-sprites.mjs"
+    "sprites:slice": "node scripts/slice-sprites.mjs",
+    "pages:publish": "vite build && node -e \"require('fs').mkdirSync('docs',{recursive:true});require('fs').copyFileSync('dist/index.html','docs/index.html')\" && git add docs && git commit -m \"chore: publish web build to GitHub Pages\" && git push"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",
