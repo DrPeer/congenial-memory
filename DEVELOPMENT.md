@@ -35,6 +35,9 @@ src/game/            THE shared core (web + native run this exact code)
   engine.ts          WEB host: rAF loop, input, audio, DOM canvas
   sprites.ts         SpriteId list, SpriteBank iface, glyph→sprite map, decor slots
   spritesWeb.ts      web bank: vite png imports → HTMLImageElement
+  levels.ts          3 worlds: theme + obstacles + cup inset + win tier
+  missions.ts        MissionStore: shared meta goals + coin rewards
+  ads.ts             ad-slot seam (simulated sponsor reel today)
   theme.ts           Theme data shape (colors, alphas) — cosmetics only
   cats.ts sound.ts   tier defs / web synth SFX
 src/assets/sprites/  generated sticker PNGs (128px) + pattern.png (512 tile)
@@ -44,6 +47,7 @@ src/components/      web Game.tsx (HUD/modals), CatIcon.tsx
 mobile/              Expo app (its own package.json/node_modules!)
   App.tsx            menu/game switch, AsyncStorage best+theme, portrait lock
   src/native/
+    missionsNative.ts AsyncStorage-backed MissionStore singleton
     skiaCtx.ts       Skia adapter implementing Ctx2D (the ONLY native draw code)
     GameScreen.tsx   rAF loop → PictureRecorder → <Picture>, touch input, haptics
     MenuScreen.tsx   native menu + theme chips

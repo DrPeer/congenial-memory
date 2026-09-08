@@ -25,7 +25,10 @@ npm run check -- --full  # + Metro export for android AND ios (slow, thorough)
 ```
 
 The sim smoke plays 4 simulated minutes headlessly and fails if merges/scoring/game-over
-regress. If `npm run check` is green, the change is structurally safe.
+regress. Progression systems live in the shared core: `levels.ts` (worlds, obstacles, win tiers),
+`missions.ts` (meta goals + rewards), `ads.ts` (ad seam — swap in a real SDK later), and sim
+(`revive()`, `won`, boosters). Hosts only wire UI + persistence around them.
+If `npm run check` is green, the change is structurally safe.
 
 ## Adding a theme (the supported way to restyle)
 
