@@ -1,6 +1,7 @@
+import type { Ctx2D } from "./ctx2d";
 import type { CatDef } from "./cats";
 
-function fluffPath(ctx: CanvasRenderingContext2D, r: number) {
+function fluffPath(ctx: Ctx2D, r: number) {
   const bumps = Math.max(14, Math.min(44, Math.round(r / 3.2)));
   const amp = r * 0.055;
   ctx.beginPath();
@@ -21,7 +22,7 @@ function fluffPath(ctx: CanvasRenderingContext2D, r: number) {
 }
 
 function drawEar(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   r: number,
   side: -1 | 1,
   def: CatDef,
@@ -54,7 +55,7 @@ function drawEar(
   ctx.restore();
 }
 
-function eyeOpen(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, scale = 1) {
+function eyeOpen(ctx: Ctx2D, x: number, y: number, r: number, scale = 1) {
   ctx.fillStyle = "#2b2233";
   ctx.beginPath();
   ctx.ellipse(x, y, r * 0.11 * scale, r * 0.14 * scale, 0, 0, Math.PI * 2);
@@ -68,7 +69,7 @@ function eyeOpen(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
   ctx.fill();
 }
 
-function eyeHappy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeHappy(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.strokeStyle = "#2b2233";
   ctx.lineWidth = Math.max(1.2, r * 0.05);
   ctx.lineCap = "round";
@@ -77,7 +78,7 @@ function eyeHappy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
   ctx.stroke();
 }
 
-function eyeSleepy(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeSleepy(ctx: Ctx2D, x: number, y: number, r: number) {
   ctx.strokeStyle = "#2b2233";
   ctx.lineWidth = Math.max(1.2, r * 0.05);
   ctx.lineCap = "round";
@@ -86,7 +87,7 @@ function eyeSleepy(ctx: CanvasRenderingContext2D, x: number, y: number, r: numbe
   ctx.stroke();
 }
 
-function eyeSmug(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, def: CatDef) {
+function eyeSmug(ctx: Ctx2D, x: number, y: number, r: number, def: CatDef) {
   eyeOpen(ctx, x, y, r);
   ctx.fillStyle = def.body;
   ctx.beginPath();
@@ -100,7 +101,7 @@ function eyeSmug(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
   ctx.stroke();
 }
 
-function eyeHeart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function eyeHeart(ctx: Ctx2D, x: number, y: number, r: number) {
   const s = r * 0.13;
   ctx.fillStyle = "#ff5c8a";
   ctx.beginPath();
@@ -110,7 +111,7 @@ function eyeHeart(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
   ctx.fill();
 }
 
-function drawFace(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+function drawFace(ctx: Ctx2D, r: number, def: CatDef) {
   const ey = -r * 0.08;
   const ex = r * 0.3;
   const exp = def.expression;
@@ -207,7 +208,7 @@ function drawFace(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
   }
 }
 
-function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
+function drawAccessory(ctx: Ctx2D, r: number, def: CatDef) {
   switch (def.accessory) {
     case "bow": {
       ctx.save();
@@ -319,6 +320,12 @@ function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
       ctx.fill();
       break;
     }
+    case "pirate":
+      drawPirate(ctx, r);
+      break;
+    case "tiara":
+      drawTiara(ctx, r);
+      break;
     case "star": {
       ctx.save();
       ctx.translate(r * 0.62, -r * 0.72);
@@ -346,8 +353,74 @@ function drawAccessory(ctx: CanvasRenderingContext2D, r: number, def: CatDef) {
  * Draws a fluffy cat ball centered at (x,y).
  * sx/sy allow squash & stretch, angle rotates the whole cat.
  */
+function drawPirate(ctx: Ctx2D, r: number) {
+  // tricorn hat
+  ctx.save();
+  ctx.translate(0, -r * 0.82);
+  ctx.rotate(-0.08);
+  ctx.fillStyle = "#3b3350";
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.62, r * 0.1);
+  ctx.quadraticCurveTo(-r * 0.3, -r * 0.42, 0, -r * 0.34);
+  ctx.quadraticCurveTo(r * 0.3, -r * 0.42, r * 0.62, r * 0.1);
+  ctx.quadraticCurveTo(0, r * 0.26, -r * 0.62, r * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#ffd447";
+  ctx.lineWidth = Math.max(1, r * 0.03);
+  ctx.stroke();
+  // skull emblem
+  ctx.fillStyle = "#f6f1ff";
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.12, r * 0.09, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#3b3350";
+  ctx.beginPath();
+  ctx.arc(-r * 0.03, -r * 0.13, r * 0.022, 0, Math.PI * 2);
+  ctx.arc(r * 0.03, -r * 0.13, r * 0.022, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // eyepatch strap + patch
+  ctx.strokeStyle = "#2b2233";
+  ctx.lineWidth = Math.max(1, r * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.72, -r * 0.28);
+  ctx.lineTo(r * 0.72, -r * 0.16);
+  ctx.stroke();
+  ctx.fillStyle = "#2b2233";
+  ctx.beginPath();
+  ctx.ellipse(r * 0.3, -r * 0.12, r * 0.13, r * 0.11, 0.1, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTiara(ctx: Ctx2D, r: number) {
+  ctx.save();
+  ctx.translate(0, -r * 0.92);
+  ctx.fillStyle = "#ffd447";
+  ctx.strokeStyle = "#d69a12";
+  ctx.lineWidth = Math.max(1, r * 0.02);
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.3, r * 0.1);
+  ctx.lineTo(-r * 0.22, -r * 0.14);
+  ctx.lineTo(-r * 0.1, -r * 0.02);
+  ctx.lineTo(0, -r * 0.22);
+  ctx.lineTo(r * 0.1, -r * 0.02);
+  ctx.lineTo(r * 0.22, -r * 0.14);
+  ctx.lineTo(r * 0.3, r * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  for (const [px, py, pr] of [[-r * 0.22, -r * 0.16, r * 0.035], [0, -r * 0.24, r * 0.045], [r * 0.22, -r * 0.16, r * 0.035]] as const) {
+    ctx.fillStyle = "#ff8fb0";
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 export function drawCat(
-  ctx: CanvasRenderingContext2D,
+  ctx: Ctx2D,
   x: number,
   y: number,
   r: number,
@@ -360,6 +433,24 @@ export function drawCat(
   ctx.translate(x, y);
   ctx.rotate(angle);
   ctx.scale(sx, sy);
+
+  // tail peeks behind (hand-drawn curl)
+  ctx.save();
+  ctx.strokeStyle = def.shade;
+  ctx.lineWidth = r * 0.16;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(r * 0.72, r * 0.55);
+  ctx.quadraticCurveTo(r * 1.12, r * 0.42, r * 1.02, r * 0.06);
+  ctx.quadraticCurveTo(r * 0.96, -r * 0.12, r * 0.8, -r * 0.06);
+  ctx.stroke();
+  ctx.strokeStyle = def.body;
+  ctx.lineWidth = r * 0.09;
+  ctx.beginPath();
+  ctx.moveTo(r * 0.98, r * 0.14);
+  ctx.quadraticCurveTo(r * 0.96, -r * 0.06, r * 0.82, -r * 0.04);
+  ctx.stroke();
+  ctx.restore();
 
   // ears first (behind body)
   drawEar(ctx, r, -1, def);
@@ -425,6 +516,54 @@ export function drawCat(
   ctx.fill();
   ctx.globalAlpha = 1;
 
+  // handmade fur tufts along the cheeks & crown (short curved strokes)
+  ctx.strokeStyle = def.shade;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = Math.max(0.8, r * 0.025);
+  ctx.lineCap = "round";
+  for (const sgn of [-1, 1] as const) {
+    for (let i = 0; i < 4; i++) {
+      const ay = -r * 0.15 + i * r * 0.17;
+      ctx.beginPath();
+      ctx.moveTo(sgn * r * 0.86, ay);
+      ctx.quadraticCurveTo(sgn * r * 0.72, ay + r * 0.05, sgn * r * 0.66, ay + r * 0.12);
+      ctx.stroke();
+    }
+  }
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * r * 0.3, -r * 0.86);
+    ctx.quadraticCurveTo(i * r * 0.26, -r * 0.74, i * r * 0.32, -r * 0.66);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // whisker pores
+  ctx.fillStyle = "rgba(60,40,50,0.35)";
+  for (const sgn of [-1, 1] as const) {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(sgn * (r * 0.2 + (i % 2) * r * 0.06), r * 0.16 + i * r * 0.06, Math.max(0.5, r * 0.012), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // little front paws with toe seams
+  for (const sgn of [-1, 1] as const) {
+    ctx.fillStyle = def.belly;
+    ctx.beginPath();
+    ctx.ellipse(sgn * r * 0.24, r * 0.82, r * 0.16, r * 0.11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = def.shade;
+    ctx.lineWidth = Math.max(0.7, r * 0.018);
+    for (let t = -1; t <= 1; t += 2) {
+      ctx.beginPath();
+      ctx.moveTo(sgn * r * 0.24 + t * r * 0.05, r * 0.76);
+      ctx.lineTo(sgn * r * 0.24 + t * r * 0.05, r * 0.86);
+      ctx.stroke();
+    }
+  }
+
   ctx.restore();
 
   // soft highlight
@@ -435,6 +574,18 @@ export function drawCat(
 
   drawFace(ctx, r, def);
   drawAccessory(ctx, r, def);
+
+  // plushie stitch seam — the "handmade" signature
+  ctx.save();
+  ctx.strokeStyle = def.outline;
+  ctx.globalAlpha = 0.4;
+  ctx.lineWidth = Math.max(0.8, r * 0.02);
+  ctx.setLineDash([r * 0.07, r * 0.06]);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
 
   ctx.restore();
 }

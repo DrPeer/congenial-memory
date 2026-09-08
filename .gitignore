@@ -1,0 +1,32 @@
+# --- node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnp.*
+
+# --- web game (vite) ---
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- expo / react native ---
+.expo/
+expo-env.d.ts
+mobile/.expo/
+mobile/expo-env.d.ts
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# --- editor / os ---
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

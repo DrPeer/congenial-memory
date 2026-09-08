@@ -6,7 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:phone": "vite preview --host 0.0.0.0 --port 4173 --strictPort",
+    "mobile": "node scripts/start-mobile.mjs",
+    "mobile:update": "npm --prefix mobile run update:preview",
+    "mobile:update:prod": "npm --prefix mobile run update:production",
+    "mobile:install": "npm --prefix mobile install",
+    "mobile:setup": "npm install && npm --prefix mobile install",
+    "mobile:typecheck": "npm --prefix mobile run typecheck",
+    "mobile:ipa": "npm --prefix mobile run build:ios",
+    "mobile:ipa:sim": "npm --prefix mobile run build:ios:sim",
+    "mobile:apk": "npm --prefix mobile run build:android",
+    "check": "node scripts/check.mjs",
+    "plugin:new": "node scripts/new-plugin.mjs",
+    "sprites:slice": "node scripts/slice-sprites.mjs",
+    "pages:publish": "vite build && node -e \"require('fs').mkdirSync('docs',{recursive:true});require('fs').copyFileSync('dist/index.html','docs/index.html')\" && git add docs && git commit -m \"chore: publish web build to GitHub Pages\" && git push"
   },
   "dependencies": {
     "@types/matter-js": "^0.20.2",
@@ -22,6 +36,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "sharp": "^0.35.4",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "7.3.2",

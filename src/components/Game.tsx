@@ -1,14 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CATS, comboWord, MAX_TIER } from "../game/cats";
+import { AD_SECONDS, pickFakeAd, type FakeAd } from "../game/ads";
+import { LEVELS, type LevelDef } from "../game/levels";
+import { MissionStore, type MissionEvent } from "../game/missions";
+import { BOOST_RAISE_COST, BOOST_SHOOT_COST, MAX_CUP_LIFT } from "../game/sim";
 import { KittyEngine, type MergeEvent } from "../game/engine";
 import { sfx } from "../game/sound";
+import { findCupSkin, findTrail } from "../game/shop";
+import { LEVEL_ICON } from "../game/sprites";
+import { activeTheme } from "../plugins/registry";
 import CatIcon from "./CatIcon";
+import Icon from "./Icon";
 
 interface Props {
   onExit: () => void;
   best: number;
   onBest: (b: number) => void;
+  level: LevelDef;
+  onSelectLevel: (id: string) => void;
+  equip: { cup?: string; trail?: string };
 }
+
+const MISSIONS_KEY = "kittydrop-missions";
+const REVIVE_COST = 30;
 
 interface Banner {
   id: number;
@@ -17,7 +31,23 @@ interface Banner {
   color: string;
 }
 
-export default function Game({ onExit, best, onBest }: Props) {
+const COINS_KEY = "kittydrop-coins";
+const loadCoins = () => {
+  try {
+    return Number(localStorage.getItem(COINS_KEY) || 0) || 0;
+  } catch {
+    return 0;
+  }
+};
+const saveCoins = (v: number) => {
+  try {
+    localStorage.setItem(COINS_KEY, String(v));
+  } catch {
+    /* ignore */
+  }
+};
+
+export default function Game({ onExit, best, onBest, level, onSelectLevel, equip }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<KittyEngine | null>(null);
@@ -34,15 +64,97 @@ export default function Game({ onExit, best, onBest }: Props) {
   const [unlocked, setUnlocked] = useState<Set<number>>(() => new Set([0, 1, 2, 3, 4]));
   const [showChain, setShowChain] = useState(false);
   const [runKey, setRunKey] = useState(0);
+  const [coins, setCoins] = useState(loadCoins);
+  const [win, setWin] = useState(false);
+  const [reviveUsed, setReviveUsed] = useState(false);
+  const [ad, setAd] = useState<{ purpose: "revive" | "retry"; left: number } | null>(null);
+  const [adCard, setAdCard] = useState<FakeAd | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick((x) => x + 1), 500);
+    return () => window.clearInterval(t);
+  }, []);
+  const dangerRef = useRef(false);
+  const missionsRef = useRef<MissionStore | null>(null);
+  if (!missionsRef.current) {
+    missionsRef.current = new MissionStore({
+      load: () => {
+        try {
+          return JSON.parse(localStorage.getItem(MISSIONS_KEY) || "null") ?? { progress: {}, done: [] };
+        } catch {
+          return { progress: {}, done: [] };
+        }
+      },
+      save: (st) => localStorage.setItem(MISSIONS_KEY, JSON.stringify(st)),
+    });
+  }
+
+  const feed = useCallback((ev: MissionEvent) => {
+    const done = missionsRef.current!.apply(ev);
+    if (done.length) {
+      setCoins((c) => {
+        let v = c;
+        for (const m of done) v += m.reward;
+        saveCoins(v);
+        return v;
+      });
+      setToast(done.map((m) => `${m.text}  +${m.reward} coins`).join("  ·  "));
+      window.setTimeout(() => setToast(null), 2800);
+    }
+  }, []);
+
+  const startAd = useCallback((purpose: "revive" | "retry") => {
+    setAdCard(pickFakeAd());
+    setAd({ purpose, left: AD_SECONDS });
+  }, []);
+
+  // ad countdown; on zero, deliver the promised reward action
+  useEffect(() => {
+    if (!ad) return;
+    if (ad.left <= 0) {
+      const purpose = ad.purpose;
+      setAd(null);
+      setAdCard(null);
+      if (purpose === "revive") {
+        if (engineRef.current?.revive()) {
+          setOver(null);
+          setReviveUsed(true);
+        }
+      } else {
+        setOver(null);
+        setRunKey((k) => k + 1);
+      }
+      return;
+    }
+    const t = window.setTimeout(() => setAd((a) => (a ? { ...a, left: a.left - 1 } : a)), 1000);
+    return () => window.clearTimeout(t);
+  }, [ad]);
   const bannerId = useRef(0);
   const bestRef = useRef(best);
   bestRef.current = best;
   const dragging = useRef(false);
 
+  const spendCoins = useCallback((n: number) => {
+    setCoins((c) => {
+      const v = Math.max(0, c - n);
+      saveCoins(v);
+      return v;
+    });
+  }, []);
+
   const handleMerge = useCallback((e: MergeEvent) => {
+    setCoins((c) => {
+      const v = c + e.coins;
+      saveCoins(v);
+      return v;
+    });
+    feed({ type: "merge", count: 1 });
+    if (e.combo > 1) feed({ type: "combo", value: e.combo });
+    if (e.newTier !== null) feed({ type: "tier", value: e.newTier });
     if (e.mega) {
       bannerId.current++;
-      setBanner({ id: bannerId.current, text: "MEGA MEOW!!", sub: `+${e.points} 👑`, color: "#ffb300" });
+      setBanner({ id: bannerId.current, text: "MEGA MEOW!!", sub: `+${e.points} MEGA`, color: "#ffb300" });
       return;
     }
     if (e.combo >= 2) {
@@ -54,7 +166,7 @@ export default function Game({ onExit, best, onBest }: Props) {
         color: e.combo >= 5 ? "#ff3d6e" : e.combo >= 3 ? "#8b5cf6" : "#ff8fb0",
       });
     }
-  }, []);
+  }, [feed]);
 
   // create engine
   useEffect(() => {
@@ -66,29 +178,51 @@ export default function Game({ onExit, best, onBest }: Props) {
     setDanger(false);
     setPaused(false);
     setUnlocked(new Set([0, 1, 2, 3, 4]));
+    setWin(false);
+    setReviveUsed(false);
+    dangerRef.current = false;
 
-    const eng = new KittyEngine(canvas, {
-      onScore: (s) => {
-        setScore(s);
-        setBump((b) => b + 1);
-      },
+    const eng = new KittyEngine(
+      canvas,
+      {
+        onScore: (s) => {
+          setScore(s);
+          setBump((b) => b + 1);
+          feed({ type: "runScore", value: s });
+        },
       onNext: (c, n) => {
         setCurrent(c);
         setNext(n);
       },
-      onMerge: handleMerge,
-      onDanger: setDanger,
+        onMerge: handleMerge,
+        onDanger: (d) => {
+          setDanger(d);
+          if (!d && dangerRef.current && !eng.over) feed({ type: "survived" });
+          dangerRef.current = d;
+        },
+        onWin: () => {
+          setWin(true);
+          feed({ type: "win", levelId: level.id });
+        },
       onGameOver: (s, biggest) => {
         const isBest = s > bestRef.current;
         if (isBest) onBest(s);
         setOver({ score: s, biggest, isBest });
+        setCoins((c) => {
+          saveCoins(c);
+          return c;
+        });
       },
-      onDiscover: (tier) => {
-        setUnlocked((u) => new Set([...u, tier]));
-        setDiscover(tier);
-        window.setTimeout(() => setDiscover((d) => (d === tier ? null : d)), 1800);
+        onDiscover: (tier) => {
+          setUnlocked((u) => new Set([...u, tier]));
+          setDiscover(tier);
+          window.setTimeout(() => setDiscover((d) => (d === tier ? null : d)), 1800);
+        },
       },
-    });
+      level,
+    );
+    eng.setLook({ cupSkin: findCupSkin(equip.cup), trail: findTrail(equip.trail) });
+    if (equip.cup || equip.trail) feed({ type: "equipSkin" });
     engineRef.current = eng;
 
     const doResize = () => {
@@ -105,7 +239,7 @@ export default function Game({ onExit, best, onBest }: Props) {
       eng.destroy();
       engineRef.current = null;
     };
-  }, [runKey, handleMerge, onBest]);
+  }, [runKey, handleMerge, onBest, feed, level, equip]);
 
   // banner auto clear
   useEffect(() => {
@@ -155,7 +289,10 @@ export default function Game({ onExit, best, onBest }: Props) {
   };
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#ffd6e7]">
+    <div
+      className="relative flex h-full w-full select-none flex-col overflow-hidden"
+      style={{ backgroundColor: activeTheme().hostBg }}
+    >
       {/* HUD */}
       <div className="relative z-10 flex items-start justify-between gap-2 px-3 pt-[max(env(safe-area-inset-top),10px)] pb-1">
         {/* left: score */}
@@ -169,7 +306,10 @@ export default function Game({ onExit, best, onBest }: Props) {
             </div>
           </div>
           <div className="rounded-xl bg-white/70 px-2.5 py-1 text-[11px] font-bold text-[#a0506e] shadow-sm">
-            👑 BEST {Math.max(best, score).toLocaleString()}
+            <Icon id="crown" size={12} /> BEST {Math.max(best, score).toLocaleString()}
+          </div>
+          <div className="flex items-center gap-1 rounded-xl bg-[#ffd76a] px-2.5 py-1 text-[11px] font-bold text-[#7a5210] shadow-sm">
+            <Icon id="coin" size={14} /> {coins.toLocaleString()}
           </div>
         </div>
 
@@ -183,25 +323,69 @@ export default function Game({ onExit, best, onBest }: Props) {
           </div>
           <div className="flex gap-1.5">
             <button
+              onClick={() => {
+                const eng = engineRef.current;
+                if (eng && eng.shootCat()) {
+                  spendCoins(BOOST_SHOOT_COST);
+                  feed({ type: "booster" });
+                }
+              }}
+              disabled={coins < BOOST_SHOOT_COST || !!over || paused}
+              className="btn-cute relative flex h-11 min-w-11 items-center justify-center gap-0.5 bg-[#bfe3ff] px-2 disabled:opacity-40"
+              aria-label="Shoot top kitty"
+              title="Shoot the topmost kitty out of the cup"
+            >
+              <Icon id="target" size={22} />
+              <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#28577a]">
+                <Icon id="coin" size={10} />
+                {BOOST_SHOOT_COST}
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                const eng = engineRef.current;
+                if (eng && eng.boostRaiseCup()) {
+                  spendCoins(BOOST_RAISE_COST);
+                  feed({ type: "booster" });
+                }
+              }}
+              disabled={coins < BOOST_RAISE_COST || !!over || paused || (engineRef.current?.cupLift ?? 0) >= MAX_CUP_LIFT}
+              className="btn-cute relative flex h-11 min-w-11 items-center justify-center gap-0.5 bg-[#c9f2df] px-2 disabled:opacity-40"
+              aria-label="Raise the cup"
+              title="Stretch the cup taller for 20s (more room!)"
+            >
+              <Icon id="basket" size={22} />
+              {(engineRef.current?.raiseLeft ?? 0) > 0 ? (
+                <span className="text-[10px] font-bold text-[#1d6a4c]">
+                  {Math.ceil((engineRef.current?.raiseLeft ?? 0) / 1000)}s
+                </span>
+              ) : (
+                <span className="flex items-center gap-0.5 text-[9px] font-bold text-[#1d6a4c]">
+                  <Icon id="coin" size={10} />
+                  {BOOST_RAISE_COST}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setShowChain((s) => !s)}
-              className="btn-cute flex h-9 w-9 items-center justify-center bg-white text-base text-[#a0506e]"
+              className="btn-cute flex h-11 w-11 items-center justify-center bg-white text-[#a0506e]"
               aria-label="Evolution"
             >
-              🐾
+              <Icon id="pawprint" size={22} />
             </button>
             <button
               onClick={toggleMute}
-              className="btn-cute flex h-9 w-9 items-center justify-center bg-white text-base"
+              className="btn-cute flex h-11 w-11 items-center justify-center bg-white"
               aria-label="Mute"
             >
-              {muted ? "🔇" : "🔊"}
+              <Icon id={muted ? "speakeroff" : "speaker"} size={22} />
             </button>
             <button
               onClick={togglePause}
-              className="btn-cute flex h-9 w-9 items-center justify-center bg-white text-base"
+              className="btn-cute flex h-11 w-11 items-center justify-center bg-white"
               aria-label="Pause"
             >
-              {paused ? "▶️" : "⏸️"}
+              <Icon id={paused ? "play" : "pause"} size={22} />
             </button>
           </div>
         </div>
@@ -210,7 +394,9 @@ export default function Game({ onExit, best, onBest }: Props) {
       {/* current cat name */}
       <div className="pointer-events-none relative z-10 -mt-1 flex justify-center">
         <div className="rounded-full bg-white/80 px-3 py-0.5 text-xs font-bold text-[#a0506e] shadow-sm">
-          Dropping <span className="text-[#ff5c8a]">{CATS[current].name}</span> · worth {CATS[Math.min(current + 1, MAX_TIER)].points} on merge
+          <Icon id={LEVEL_ICON[level.id] ?? "flower"} size={14} />{" "}
+          <span className="text-[#8a5a3a]">{level.name}</span> · dropping{" "}
+          <span className="text-[#ff5c8a]">{CATS[current].name}</span>
         </div>
       </div>
 
@@ -281,7 +467,7 @@ export default function Game({ onExit, best, onBest }: Props) {
               </div>
             ))}
             <div className="flex items-center gap-3 rounded-2xl bg-[#fff4d6] px-3 py-2 text-xs text-[#8a6d1f]">
-              👑 Two Royal Chonks merging = <b>+2000</b> MEGA MEOW bonus! Combos multiply points ×1.5 each.
+              <Icon id="crown" size={14} /> Two Royal Chonks merging = <b>+2000</b> MEGA MEOW bonus! Combos multiply points ×1.5 each.
             </div>
           </div>
           <button onClick={() => setShowChain(false)} className="btn-cute mt-3 w-full bg-[#ff8fb0] py-2.5 text-white">
@@ -293,33 +479,101 @@ export default function Game({ onExit, best, onBest }: Props) {
       {/* pause modal */}
       {paused && !over && (
         <Modal>
-          <div className="mb-1 text-center text-5xl">😴</div>
+          <div className="mb-1 flex justify-center"><Icon id="pause" size={56} /></div>
           <h2 className="mb-4 text-center text-2xl font-bold text-[#7a3b55]">Paused</h2>
           <div className="flex flex-col gap-2">
             <button onClick={togglePause} className="btn-cute w-full bg-[#ff8fb0] py-3 text-lg text-white">
               ▶ Resume
             </button>
             <button onClick={restart} className="btn-cute w-full bg-[#ffd88a] py-3 text-[#7a3b55]">
-              🔄 Restart
+              <Icon id="play" size={18} /> Restart
             </button>
             <button onClick={onExit} className="btn-cute w-full bg-white py-3 text-[#a0506e]">
-              🏠 Menu
+              <Icon id="home" size={18} /> Menu
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* mission toast */}
+      {toast && (
+        <div className="pointer-events-none absolute inset-x-0 top-[12%] z-40 flex justify-center px-4">
+          <div className="anim-pop flex items-center gap-2 rounded-2xl border-4 border-white bg-[#7ed08a] px-4 py-2 text-sm font-bold text-white shadow-xl">
+            <Icon id="party" size={20} /> {toast}
+          </div>
+        </div>
+      )}
+
+      {/* level complete → choose next world */}
+      {win && !over && (
+        <Modal>
+          <div className="anim-pop text-center">
+            <div className="mb-1 flex justify-center">
+              <Icon id="party" size={56} />
+            </div>
+            <h2 className="text-3xl font-bold text-[#7a3b55]">LEVEL COMPLETE!</h2>
+            <p className="mb-4 text-xs text-[#a0506e]">
+              {level.emoji} {level.name} cleared — pick your next world:
+            </p>
+            <div className="flex flex-col gap-2">
+              {LEVELS.filter((l) => l.id !== "meadow").map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => onSelectLevel(l.id)}
+                  className="btn-cute flex items-center gap-3 bg-white p-3 text-left"
+                >
+                  <Icon id={LEVEL_ICON[l.id] ?? "flower"} size={40} />
+                  <span>
+                    <span className="block text-lg font-bold text-[#7a3b55]">{l.name}</span>
+                    <span className="block text-[11px] text-[#a0506e]">{l.desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setWin(false)} className="btn-cute mt-2 w-full bg-white/70 py-2 text-xs text-[#a0506e]">
+              keep playing here
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* simulated sponsor reel (ad slot) */}
+      {ad && adCard && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#2b2233]/80 p-6 backdrop-blur-sm">
+          <div className="anim-pop w-full max-w-sm rounded-[28px] border-4 border-white bg-white p-6 text-center shadow-2xl">
+            <div className="text-[10px] font-bold tracking-[0.3em] text-[#b0a8b8]">SPONSOR REEL · AD</div>
+            <div className="my-4 flex justify-center">
+              <Icon id={adCard.icon} size={72} />
+            </div>
+            <div className="text-2xl font-bold text-[#4a3b55]">{adCard.title}</div>
+            <div className="mt-1 text-sm text-[#7a6b88]">{adCard.tagline}</div>
+            <div className="mt-5 text-xs font-bold text-[#b0a8b8]">reward in {ad.left}s…</div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eee6f2]">
+              <div
+                className="h-full rounded-full bg-[#57c6ff] transition-all duration-1000"
+                style={{ width: `${((AD_SECONDS - ad.left) / AD_SECONDS) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* game over modal */}
       {over && (
         <Modal>
           <div className="anim-pop text-center">
-            <div className="mb-1 text-5xl">{over.isBest ? "🏆" : "😿"}</div>
+            <div className="mb-1 flex justify-center">
+              <Icon id={over.isBest ? "trophy" : "sadcat"} size={56} />
+            </div>
             <h2 className="text-3xl font-bold text-[#7a3b55]">{over.isBest ? "NEW BEST!" : "Too many kitties!"}</h2>
             <p className="mb-3 text-xs text-[#a0506e]">The basket overflowed with fluff</p>
             <div className="mb-3 rounded-2xl bg-[#fff0f6] p-3">
               <div className="text-[10px] font-bold tracking-[0.25em] text-[#c46b8f]">FINAL SCORE</div>
               <div className="text-4xl font-bold text-[#ff5c8a]">{over.score.toLocaleString()}</div>
               <div className="mt-1 text-xs text-[#a0506e]">Best: {Math.max(best, over.score).toLocaleString()}</div>
+              <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold text-[#7a5210]">
+                <Icon id="coin" size={12} /> +{(engineRef.current?.coinsEarned ?? 0).toLocaleString()} coins banked
+              </div>
             </div>
             <div className="mb-4 flex items-center justify-center gap-3 rounded-2xl bg-[#fff4d6] p-2">
               <CatIcon tier={over.biggest} size={56} />
@@ -329,11 +583,49 @@ export default function Game({ onExit, best, onBest }: Props) {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <button onClick={restart} className="btn-cute w-full bg-[#ff8fb0] py-3 text-lg text-white">
-                🐱 Play Again
-              </button>
-              <button onClick={onExit} className="btn-cute w-full bg-white py-3 text-[#a0506e]">
-                🏠 Menu
+              {!reviveUsed && (
+                <>
+                  <button
+                    onClick={() => startAd("revive")}
+                    className="btn-cute flex w-full items-center justify-center gap-2 bg-[#57c6ff] py-3 text-lg text-white"
+                  >
+                    <Icon id="tv" size={22} /> Watch ad → revive & continue
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (coins >= REVIVE_COST && engineRef.current?.revive()) {
+                        spendCoins(REVIVE_COST);
+                        setOver(null);
+                        setReviveUsed(true);
+                      }
+                    }}
+                    disabled={coins < REVIVE_COST}
+                    className="btn-cute flex w-full items-center justify-center gap-2 bg-[#ffd76a] py-3 text-lg text-[#7a5210] disabled:opacity-40"
+                  >
+                    <Icon id="coin" size={20} /> {REVIVE_COST} → revive & continue
+                  </button>
+                </>
+              )}
+              {level.retryNeedsAd ? (
+                <button
+                  onClick={() => startAd("retry")}
+                  className="btn-cute flex w-full items-center justify-center gap-2 bg-[#ff8fb0] py-3 text-lg text-white"
+                >
+                  <Icon id="tv" size={22} /> Watch ad → retry {level.name}
+                </button>
+              ) : (
+                <button
+                  onClick={restart}
+                  className="btn-cute flex w-full items-center justify-center gap-2 bg-[#ff8fb0] py-3 text-lg text-white"
+                >
+                  <Icon id="pawprint" size={22} /> Play Again
+                </button>
+              )}
+              <button
+                onClick={onExit}
+                className="btn-cute flex w-full items-center justify-center gap-2 bg-white py-3 text-[#a0506e]"
+              >
+                <Icon id="home" size={20} /> Menu
               </button>
             </div>
           </div>
@@ -350,7 +642,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose?: () 
       onClick={onClose}
     >
       <div
-        className="anim-pop w-full max-w-sm rounded-[28px] border-4 border-white bg-gradient-to-b from-white to-[#ffeaf2] p-5 shadow-2xl"
+        className="anim-pop max-h-[86vh] w-full max-w-sm overflow-y-auto rounded-[28px] border-4 border-white bg-gradient-to-b from-white to-[#ffeaf2] p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
