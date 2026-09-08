@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CATS, comboWord, MAX_TIER } from "../game/cats";
+import { BOOST_RAISE_COST, BOOST_SHOOT_COST, MAX_CUP_LIFT } from "../game/sim";
 import { KittyEngine, type MergeEvent } from "../game/engine";
 import { sfx } from "../game/sound";
 import { activeTheme } from "../plugins/registry";
@@ -18,6 +19,22 @@ interface Banner {
   color: string;
 }
 
+const COINS_KEY = "kittydrop-coins";
+const loadCoins = () => {
+  try {
+    return Number(localStorage.getItem(COINS_KEY) || 0) || 0;
+  } catch {
+    return 0;
+  }
+};
+const saveCoins = (v: number) => {
+  try {
+    localStorage.setItem(COINS_KEY, String(v));
+  } catch {
+    /* ignore */
+  }
+};
+
 export default function Game({ onExit, best, onBest }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -35,12 +52,26 @@ export default function Game({ onExit, best, onBest }: Props) {
   const [unlocked, setUnlocked] = useState<Set<number>>(() => new Set([0, 1, 2, 3, 4]));
   const [showChain, setShowChain] = useState(false);
   const [runKey, setRunKey] = useState(0);
+  const [coins, setCoins] = useState(loadCoins);
   const bannerId = useRef(0);
   const bestRef = useRef(best);
   bestRef.current = best;
   const dragging = useRef(false);
 
+  const spendCoins = useCallback((n: number) => {
+    setCoins((c) => {
+      const v = Math.max(0, c - n);
+      saveCoins(v);
+      return v;
+    });
+  }, []);
+
   const handleMerge = useCallback((e: MergeEvent) => {
+    setCoins((c) => {
+      const v = c + e.coins;
+      saveCoins(v);
+      return v;
+    });
     if (e.mega) {
       bannerId.current++;
       setBanner({ id: bannerId.current, text: "MEGA MEOW!!", sub: `+${e.points} 👑`, color: "#ffb300" });
@@ -83,6 +114,10 @@ export default function Game({ onExit, best, onBest }: Props) {
         const isBest = s > bestRef.current;
         if (isBest) onBest(s);
         setOver({ score: s, biggest, isBest });
+        setCoins((c) => {
+          saveCoins(c);
+          return c;
+        });
       },
       onDiscover: (tier) => {
         setUnlocked((u) => new Set([...u, tier]));
@@ -172,6 +207,9 @@ export default function Game({ onExit, best, onBest }: Props) {
           <div className="rounded-xl bg-white/70 px-2.5 py-1 text-[11px] font-bold text-[#a0506e] shadow-sm">
             👑 BEST {Math.max(best, score).toLocaleString()}
           </div>
+          <div className="rounded-xl bg-[#ffd76a] px-2.5 py-1 text-[11px] font-bold text-[#7a5210] shadow-sm">
+            🪙 {coins.toLocaleString()}
+          </div>
         </div>
 
         {/* right: next + buttons */}
@@ -183,6 +221,30 @@ export default function Game({ onExit, best, onBest }: Props) {
             </div>
           </div>
           <div className="flex gap-1.5">
+            <button
+              onClick={() => {
+                const eng = engineRef.current;
+                if (eng && eng.shootCat()) spendCoins(BOOST_SHOOT_COST);
+              }}
+              disabled={coins < BOOST_SHOOT_COST || !!over || paused}
+              className="btn-cute relative flex h-9 items-center justify-center bg-[#bfe3ff] px-2 text-base disabled:opacity-40"
+              aria-label="Shoot top kitty"
+              title="Shoot the topmost kitty out of the cup"
+            >
+              🎯<span className="ml-0.5 text-[9px] font-bold text-[#28577a]">🪙{BOOST_SHOOT_COST}</span>
+            </button>
+            <button
+              onClick={() => {
+                const eng = engineRef.current;
+                if (eng && eng.boostRaiseCup()) spendCoins(BOOST_RAISE_COST);
+              }}
+              disabled={coins < BOOST_RAISE_COST || !!over || paused || (engineRef.current?.cupLift ?? 0) >= MAX_CUP_LIFT}
+              className="btn-cute relative flex h-9 items-center justify-center bg-[#c9f2df] px-2 text-base disabled:opacity-40"
+              aria-label="Raise the cup"
+              title="Stretch the cup taller (more room!)"
+            >
+              🧺<span className="ml-0.5 text-[9px] font-bold text-[#1d6a4c]">🪙{BOOST_RAISE_COST}</span>
+            </button>
             <button
               onClick={() => setShowChain((s) => !s)}
               className="btn-cute flex h-9 w-9 items-center justify-center bg-white text-base text-[#a0506e]"
@@ -321,6 +383,7 @@ export default function Game({ onExit, best, onBest }: Props) {
               <div className="text-[10px] font-bold tracking-[0.25em] text-[#c46b8f]">FINAL SCORE</div>
               <div className="text-4xl font-bold text-[#ff5c8a]">{over.score.toLocaleString()}</div>
               <div className="mt-1 text-xs text-[#a0506e]">Best: {Math.max(best, over.score).toLocaleString()}</div>
+              <div className="mt-1 text-xs font-bold text-[#7a5210]">🪙 +{(engineRef.current?.coinsEarned ?? 0).toLocaleString()} coins banked</div>
             </div>
             <div className="mb-4 flex items-center justify-center gap-3 rounded-2xl bg-[#fff4d6] p-2">
               <CatIcon tier={over.biggest} size={56} />

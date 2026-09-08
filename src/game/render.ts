@@ -14,8 +14,7 @@ import {
   CUP_FLOOR,
   CUP_LEFT_TOP,
   CUP_RIGHT_TOP,
-  CUP_TOP,
-  DEAD_LINE_Y,
+  DANGER_FUSE_MS,
   DROP_Y,
   WORLD_H,
   WORLD_W,
@@ -31,7 +30,7 @@ export interface RenderOpts {
 
 export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: RenderOpts = {}) {
   drawBackground(ctx, now, opts);
-  drawCup(ctx, opts);
+  drawCup(ctx, sim, opts);
 
   for (const c of sim.catViews()) {
     const def = CATS[c.tier];
@@ -42,6 +41,7 @@ export function renderScene(ctx: Ctx2D, sim: KittySim, now: number, opts: Render
     drawCat(ctx, c.x, c.y, c.r, def, s * (1 + sq), s * (1 - sq), c.angle);
   }
 
+  drawShots(ctx, sim, now);
   drawDropper(ctx, sim, now);
   drawDeadLine(ctx, sim, now);
   drawParticles(ctx, sim, now, opts);
@@ -104,8 +104,9 @@ function drawBackground(ctx: Ctx2D, now: number, opts: RenderOpts) {
   ctx.restore();
 }
 
-function drawCup(ctx: Ctx2D, opts: RenderOpts) {
+function drawCup(ctx: Ctx2D, sim: KittySim, opts: RenderOpts) {
   const t = opts.theme;
+  const top = sim.cupTop;
   // shadow
   ctx.save();
   ctx.fillStyle = t ? t.cupShadow : "rgba(180,90,120,0.18)";
@@ -116,12 +117,12 @@ function drawCup(ctx: Ctx2D, opts: RenderOpts) {
 
   // body
   ctx.beginPath();
-  ctx.moveTo(CUP_LEFT_TOP - 6, CUP_TOP - 6);
-  ctx.lineTo(CUP_RIGHT_TOP + 6, CUP_TOP - 6);
+  ctx.moveTo(CUP_LEFT_TOP - 6, top - 6);
+  ctx.lineTo(CUP_RIGHT_TOP + 6, top - 6);
   ctx.lineTo(348 + 6, CUP_FLOOR + 8);
   ctx.quadraticCurveTo(WORLD_W / 2, CUP_FLOOR + 22, 52 - 6, CUP_FLOOR + 8);
   ctx.closePath();
-  const g = ctx.createLinearGradient(0, CUP_TOP, 0, CUP_FLOOR);
+  const g = ctx.createLinearGradient(0, top, 0, CUP_FLOOR);
   g.addColorStop(0, t ? t.cupFillTop : "#fff9fb");
   g.addColorStop(1, t ? t.cupFillBottom : "#ffeaf2");
   ctx.fillStyle = g;
@@ -135,8 +136,8 @@ function drawCup(ctx: Ctx2D, opts: RenderOpts) {
   ctx.strokeStyle = t ? t.cupRim : "rgba(242,165,194,0.45)";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(CUP_LEFT_TOP + 6, CUP_TOP + 14);
-  ctx.lineTo(CUP_RIGHT_TOP - 6, CUP_TOP + 14);
+  ctx.moveTo(CUP_LEFT_TOP + 6, top + 14);
+  ctx.lineTo(CUP_RIGHT_TOP - 6, top + 14);
   ctx.stroke();
 
   // fish motif (sticker when available)
@@ -152,6 +153,7 @@ function drawCup(ctx: Ctx2D, opts: RenderOpts) {
 }
 
 function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number) {
+  const DEAD_LINE_Y = sim.deadLineY;
   ctx.save();
   ctx.setLineDash([10, 8]);
   ctx.lineDashOffset = -((now * 0.02) % 18);
@@ -168,12 +170,45 @@ function drawDeadLine(ctx: Ctx2D, sim: KittySim, now: number) {
   ctx.stroke();
   ctx.setLineDash([]);
   if (sim.danger) {
-    ctx.font = "bold 14px Fredoka, sans-serif";
+    // overfull countdown: shrinking ring + seconds left until game over
+    const left = sim.dangerLeft;
+    const secs = Math.max(1, Math.ceil(left / 1000));
+    const frac = Math.max(0, Math.min(1, left / DANGER_FUSE_MS));
+    const cx = WORLD_W / 2;
+    const cy = DEAD_LINE_Y - 54;
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = "rgba(255,255,255,0.75)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 25, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#ff3d6e";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 25, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.stroke();
+    const pulse = 1 + 0.1 * Math.sin(now * 0.02);
+    ctx.font = `700 ${Math.round(30 * pulse)}px Fredoka, sans-serif`;
     ctx.fillStyle = "#ff3d6e";
     ctx.textAlign = "center";
-    ctx.fillText("⚠️ TOO FULL! ⚠️", WORLD_W / 2, DEAD_LINE_Y - 8);
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(secs), cx, cy + 1);
+    ctx.font = "bold 14px Fredoka, sans-serif";
+    ctx.fillText("⚠️ TOO FULL! ⚠️", WORLD_W / 2, DEAD_LINE_Y - 10);
   }
   ctx.restore();
+}
+
+/** kitties launched out by the shoot booster: spin up & fade */
+function drawShots(ctx: Ctx2D, sim: KittySim, now: number) {
+  for (const sh of sim.shots) {
+    const k = Math.min(1, (now - sh.t0) / 700);
+    const ease = 1 - Math.pow(1 - k, 3);
+    const def = CATS[sh.tier];
+    const sc = 1 + 0.25 * k;
+    ctx.save();
+    ctx.globalAlpha = 1 - k;
+    drawCat(ctx, sh.x, sh.y - ease * 300, def.radius * 0.95, def, sc, sc, k * 5);
+    ctx.restore();
+  }
 }
 
 function drawDropper(ctx: Ctx2D, sim: KittySim, now: number) {

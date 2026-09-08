@@ -169,6 +169,27 @@ const chime = (combo) => {
   const count = Math.min(notes.length, 2 + combo);
   return toneSeq(notes.slice(0, count), { type: "triangle", gain: 0.12, step: 0.06, attack: 0.02, decay: 0.35, mult: 1 + combo * 0.02 });
 };
+function shoot() {
+  let phase = 0;
+  const sweep = render(0.22, (t) => {
+    const f = expAt([[0, 260], [0.14, 1500]], t);
+    phase += (2 * Math.PI * f) / FS;
+    const g = expAt([[0, 0.0001], [0.02, 0.16], [0.2, 0.0001]], t);
+    return Math.sin(phase) * g;
+  });
+  return mixBuffers([sweep, pop(1.4)]);
+}
+function raiseCup() {
+  let phase = 0;
+  return render(0.36, (t) => {
+    const f = expAt([[0, 180], [0.28, 520]], t);
+    phase += (2 * Math.PI * f) / FS;
+    const frac = (phase / (2 * Math.PI)) % 1;
+    const tri = 1 - 4 * Math.abs(frac - 0.5);
+    const g = expAt([[0, 0.0001], [0.05, 0.14], [0.34, 0.0001]], t);
+    return tri * g;
+  });
+}
 const fanfare = () => toneSeq([523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5], { type: "square", gain: 0.07, step: 0.11, attack: 0.02, decay: 0.25 });
 const sad = () => toneSeq([440, 392, 349.23, 293.66], { type: "triangle", gain: 0.12, step: 0.22, attack: 0.03, decay: 0.4 });
 
@@ -191,8 +212,10 @@ for (let c = 2; c <= 8; c++) {
   writeFileSync(path.join(OUT, name), wav(chime(c)));
   files.push(name);
 }
+writeFileSync(path.join(OUT, "shoot.wav"), wav(shoot()));
+writeFileSync(path.join(OUT, "raise.wav"), wav(raiseCup()));
 writeFileSync(path.join(OUT, "fanfare.wav"), wav(fanfare()));
 writeFileSync(path.join(OUT, "sad.wav"), wav(sad()));
-files.push("fanfare.wav", "sad.wav");
+files.push("shoot.wav", "raise.wav", "fanfare.wav", "sad.wav");
 
 console.log(`✔ wrote ${files.length} wav assets → mobile/assets/sounds/ (${files.join(", ").slice(0, 120)}…)`);

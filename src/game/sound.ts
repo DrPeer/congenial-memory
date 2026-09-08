@@ -105,6 +105,43 @@ class Sfx {
     }
   }
 
+  /** booster: kitty launched skyward (zip + poof) */
+  shoot() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(260, t);
+    osc.frequency.exponentialRampToValueAtTime(1500, t + 0.14);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.22);
+    this.pop(1.4);
+  }
+
+  /** booster: cup stretches upward (creaky rise) */
+  raiseCup() {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(520, t + 0.28);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.14, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.36);
+  }
+
   fanfare() {
     const ctx = this.ensure();
     if (!ctx) return;

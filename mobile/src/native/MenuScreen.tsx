@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { CATS } from "../../../src/game/cats";
 import { activeTheme, getThemes } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
@@ -40,6 +42,13 @@ export default function MenuScreen({ best, themeId, onTheme, onPlay }: Props) {
     loop.start();
     return () => loop.stop();
   }, [float]);
+
+  const [coins, setCoins] = useState(0);
+  useEffect(() => {
+    AsyncStorage.getItem("kittydrop-coins")
+      .then((v) => setCoins(Number(v || 0) || 0))
+      .catch(() => {});
+  }, []);
 
   const theme = activeTheme();
   return (
@@ -102,6 +111,9 @@ export default function MenuScreen({ best, themeId, onTheme, onPlay }: Props) {
       </View>
 
       <View style={styles.cta}>
+        <View style={styles.coinChip}>
+          <Text style={styles.coinChipText}>🪙 {coins.toLocaleString()} coins</Text>
+        </View>
         <View style={styles.themeRow}>
           {getThemes().map((t) => (
             <Pressable
@@ -152,6 +164,8 @@ const styles = StyleSheet.create({
   howtoLine: { fontSize: 14, color: "#7a3b55" },
   cta: { width: "100%", maxWidth: 380, alignItems: "center", gap: 12 },
   themeRow: { flexDirection: "row", gap: 8 },
+  coinChip: { borderRadius: 999, backgroundColor: "#ffd76a", paddingHorizontal: 14, paddingVertical: 6 },
+  coinChipText: { fontSize: 13, fontWeight: "800", color: "#7a5210" },
   themeChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.8)" },
   themeChipActive: { backgroundColor: "#ff8fb0" },
   themeChipText: { fontSize: 12, fontWeight: "700", color: "#a0506e" },

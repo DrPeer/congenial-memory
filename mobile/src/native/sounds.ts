@@ -37,6 +37,8 @@ const SRC: Record<string, number> = {
   chime06: require("../../assets/sounds/chime06.wav"),
   chime07: require("../../assets/sounds/chime07.wav"),
   chime08: require("../../assets/sounds/chime08.wav"),
+  shoot: require("../../assets/sounds/shoot.wav"),
+  raise: require("../../assets/sounds/raise.wav"),
   fanfare: require("../../assets/sounds/fanfare.wav"),
   sad: require("../../assets/sounds/sad.wav"),
 };
@@ -95,6 +97,12 @@ class NativeSfx {
   }
   chime(combo: number) {
     this.play(`chime${pad(Math.max(2, Math.min(8, combo)))}`);
+  }
+  shoot() {
+    this.play("shoot");
+  }
+  raiseCup() {
+    this.play("raise");
   }
   fanfare() {
     this.play("fanfare");

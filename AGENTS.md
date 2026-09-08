@@ -5,9 +5,12 @@ add features **without being able to break the game**.
 
 ## The one invariant
 
-> `src/game/sim.ts` is the frozen v1 system: physics constants, merge/combo/scoring
-> rules, danger-line logic, drop cadence. **Never change gameplay numbers or logic.**
-> Everything else (rendering, themes, sprites, HUD, menus, sounds, plugins) is fair game.
+> `src/game/sim.ts` holds the v1 system (physics, merge/combo/scoring, danger logic).
+> **Never change existing mechanics or numbers unless the user explicitly asks.**
+> User-requested additions since v1: overfull countdown fuse (`DANGER_FUSE_MS`),
+> coin economy (`MergeEvent.coins`) and two boosters (`raiseCup`, `shootTopCat`,
+> costs in `BOOST_*` consts). New mechanics must stay in sim.ts so web+native share
+> them automatically, and `npm run check` must stay green.
 
 Parity rule: web and native render through the SAME code (`src/game/render.ts`,
 `src/game/drawCat.ts`) via the `Ctx2D` interface (`src/game/ctx2d.ts`). If you add a

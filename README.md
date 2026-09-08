@@ -59,6 +59,17 @@ Open the printed URL in Safari → *Share → Add to Home Screen* (web build, no
 
 ---
 
+## Coins, boosters & the overfull countdown
+
+- Merges mint 🪙 **coins** into a persistent wallet (`kittydrop-coins` key, both platforms).
+- Spend them mid-run from the HUD:
+  - 🎯 **Shoot** (8🪙): launches the topmost kitty clean out of the cup.
+  - 🧺 **Raise cup** (12🪙, twice per run): stretches the cup taller — rim *and* danger line rise.
+- When the cup is too full, a **countdown ring** (1.8 s fuse) ticks above the danger line
+  before game over — clear the stack (or shoot a kitty!) to cancel it.
+- Headless proof frames, including the countdown: `node scripts/screenshot-game.mjs`
+  → `screenshots/frame-*.png`.
+
 ## Themes & plugins (safe playground for humans & AI)
 
 - Every skin is a **plugin**: `src/plugins/<id>/` exports a `Theme` and registers with

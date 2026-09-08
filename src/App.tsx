@@ -133,6 +133,9 @@ export default function App() {
             </button>
           ))}
         </div>
+        <div className="rounded-full bg-[#ffd76a] px-4 py-1 text-sm font-bold text-[#7a5210] shadow-md">
+          🪙 {(Number(localStorage.getItem("kittydrop-coins") || 0) || 0).toLocaleString()} coins
+        </div>
         {best > 0 && (
           <div className="rounded-full bg-[#ffd88a] px-4 py-1 text-sm font-bold text-[#7a3b55] shadow">
             👑 Best: {best.toLocaleString()}

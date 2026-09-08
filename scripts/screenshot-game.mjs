@@ -224,5 +224,43 @@ for (const theme of G.getThemes()) {
   }
   if (!captured) console.error(`✖ no good frame for ${theme.id}`);
 }
+
+  /* ------------------------------------------------ danger countdown frame */
+  {
+    const theme = G.getThemes()[0];
+    G.setActiveThemeId(theme.id);
+    const sim = new G.KittySim({
+      onScore: () => {}, onNext: () => {}, onMerge: () => {}, onDanger: () => {},
+      onGameOver: () => {}, onDiscover: () => {},
+    });
+    let t = 0;
+    sim.prime(t);
+    let drops = 0;
+    let raised = false;
+    let done = false;
+    for (let f = 0; f < 60 * 240 && !done; f++) {
+      t += 1000 / 60;
+      sim.step(t);
+      if (f % 30 === 0 && sim.canDrop) {
+        sim.setPointerWorldX(200 + ((drops % 3) - 1) * 34);
+        if (sim.drop()) drops++;
+      }
+      if (!raised && sim.catViews().length >= 9) {
+        sim.raiseCup(); // show the stretched cup in the shot
+        raised = true;
+      }
+      if (sim.danger && sim.dangerLeft < 1500 && sim.dangerLeft > 300) {
+        const ctx = new SvgCtx2D();
+        G.renderScene(ctx, sim, t, { theme, sprites: bank });
+        const file = path.join(outDir, "frame-danger.png");
+        // eslint-disable-next-line no-await-in-loop
+        await sharp(Buffer.from(ctx.svg(theme.hostBg, W, H))).png().toFile(file);
+        console.log("✔", path.relative(ROOT, file));
+        done = true;
+      }
+      if (sim.over) break;
+    }
+    if (!done) console.error("✖ no danger frame captured");
+  }
 }
 main().catch((e) => { console.error(e); process.exit(1); });

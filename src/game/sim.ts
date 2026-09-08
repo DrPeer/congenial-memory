@@ -25,6 +25,14 @@ export const CUP_RIGHT_BOT = 348;
 export const DROP_Y = 82;
 export const DEAD_LINE_Y = 168;
 
+/* booster economy + limits (shared by web & native hosts) */
+export const BOOST_SHOOT_COST = 8;
+export const BOOST_RAISE_COST = 12;
+export const MAX_CUP_LIFT = 120;
+export const CUP_LIFT_STEP = 60;
+/** how long an overfull cup survives before game over (the countdown) */
+export const DANGER_FUSE_MS = 1800;
+
 export interface CatView {
   x: number;
   y: number;
@@ -66,6 +74,15 @@ export interface MergeEvent {
   points: number;
   combo: number;
   mega: boolean;
+  /** coins this merge minted for the player's wallet */
+  coins: number;
+}
+
+export interface Shot {
+  x: number;
+  y: number;
+  tier: number;
+  t0: number;
 }
 
 export interface SimCallbacks {
@@ -108,7 +125,22 @@ export class KittySim {
   dropReadyAt = 0;
   danger = false;
   private dangerSince: number | null = null;
+  /** ms left on the overfull countdown while `danger` is true */
+  dangerLeft = 0;
   dropCount = 0;
+  /** cup stretch bought via the raise booster (raises rim + danger line) */
+  cupLift = 0;
+  /** kitties launched out by the shoot booster (renderer animates them) */
+  shots: Shot[] = [];
+  /** coins minted this run */
+  coinsEarned = 0;
+
+  get cupTop(): number {
+    return CUP_TOP - this.cupLift;
+  }
+  get deadLineY(): number {
+    return DEAD_LINE_Y - this.cupLift;
+  }
 
   constructor(private cb: SimCallbacks) {
     this.engine.gravity.y = 1.05;
@@ -139,19 +171,20 @@ export class KittySim {
 
   private buildWalls() {
     const thick = 40;
-    const wallLen = Math.hypot(CUP_LEFT_BOT - CUP_LEFT_TOP, CUP_FLOOR - CUP_TOP) + 60;
+    // walls are born MAX_CUP_LIFT taller so the raise booster needs no rebuild
+    const wallLen = Math.hypot(CUP_LEFT_BOT - CUP_LEFT_TOP, CUP_FLOOR - CUP_TOP) + 60 + MAX_CUP_LIFT;
     const ang = Math.atan((CUP_LEFT_BOT - CUP_LEFT_TOP) / (CUP_FLOOR - CUP_TOP));
     const opts = { isStatic: true, friction: 0.4, restitution: 0.1, label: "wall" };
     const left = Bodies.rectangle(
       (CUP_LEFT_TOP + CUP_LEFT_BOT) / 2 - thick / 2,
-      (CUP_TOP + CUP_FLOOR) / 2 - 30,
+      (CUP_TOP - MAX_CUP_LIFT + CUP_FLOOR) / 2 - 30,
       thick,
       wallLen,
       { ...opts, angle: -ang },
     );
     const right = Bodies.rectangle(
       (CUP_RIGHT_TOP + CUP_RIGHT_BOT) / 2 + thick / 2,
-      (CUP_TOP + CUP_FLOOR) / 2 - 30,
+      (CUP_TOP - MAX_CUP_LIFT + CUP_FLOOR) / 2 - 30,
       thick,
       wallLen,
       { ...opts, angle: ang },
@@ -285,13 +318,15 @@ export class KittySim {
         }
       }
 
+      const coins = mega ? 10 : newTier!;
+      this.coinsEarned += coins;
       this.score += points;
       this.addPopup(mx, my - 10, `+${points}`, mega ? "#ffb300" : "#ff5c8a", 20 + Math.min(this.combo, 6) * 2, 1100);
       if (this.combo > 1) {
         this.addPopup(mx, my - 40, `x${this.combo} COMBO`, "#8b5cf6", 16 + this.combo * 1.5, 1200);
       }
       this.cb.onScore(this.score);
-      this.cb.onMerge({ tier, newTier, points, combo: this.combo, mega });
+      this.cb.onMerge({ tier, newTier, points, combo: this.combo, mega, coins });
     }
   }
 
@@ -319,6 +354,41 @@ export class KittySim {
     }
   }
 
+  /* ------------------------------------------------------------ boosters */
+
+  /** Coin booster: stretch the cup upward (rim + danger line rise). */
+  raiseCup(): boolean {
+    if (this.over || this.cupLift >= MAX_CUP_LIFT) return false;
+    this.cupLift += CUP_LIFT_STEP;
+    this.addPopup(WORLD_W / 2, this.cupTop - 10, "CUP UP!", "#2fb78a", 26, 1400);
+    this.burst(WORLD_W / 2, this.cupTop + 10, 18, ["✨", "⭐", "✨"]);
+    return true;
+  }
+
+  /** Coin booster: shoot the topmost kitty clean out of the cup. */
+  shootTopCat(): boolean {
+    if (this.over) return false;
+    const now = performance.now();
+    let top: Matter.Body | null = null;
+    let topY = Infinity;
+    for (const body of Composite.allBodies(this.engine.world)) {
+      if (body.label !== "cat") continue;
+      const d = this.cats.get(body.id);
+      if (!d || now - d.born < 500) continue;
+      if (body.position.y < topY) {
+        topY = body.position.y;
+        top = body;
+      }
+    }
+    if (!top) return false;
+    const d = this.cats.get(top.id)!;
+    this.shots.push({ x: top.position.x, y: topY, tier: d.tier, t0: now });
+    this.removeBody(top);
+    this.burst(top.position.x, topY, 14, ["💨", "✨", "⭐"]);
+    this.addPopup(top.position.x, topY - 30, "BYE-KITTY!", "#5aa7e8", 22, 1200);
+    return true;
+  }
+
   /* ------------------------------------------------------------ game over */
 
   private checkDanger(now: number) {
@@ -331,7 +401,7 @@ export class KittySim {
       const age = now - d.born;
       if (age < 900) continue;
       const slow = Math.hypot(body.velocity.x, body.velocity.y) < 2.5;
-      if (body.position.y - r < DEAD_LINE_Y && slow) {
+      if (body.position.y - r < this.deadLineY && slow) {
         anyAbove = true;
         break;
       }
@@ -342,9 +412,11 @@ export class KittySim {
         this.danger = true;
         this.cb.onDanger(true);
       }
-      if (now - this.dangerSince > 1800) this.endGame();
+      this.dangerLeft = Math.max(0, DANGER_FUSE_MS - (now - this.dangerSince));
+      if (now - this.dangerSince > DANGER_FUSE_MS) this.endGame();
     } else {
       this.dangerSince = null;
+      this.dangerLeft = 0;
       if (this.danger) {
         this.danger = false;
         this.cb.onDanger(false);
@@ -379,6 +451,8 @@ export class KittySim {
       if (!this.canDrop && t >= this.dropReadyAt) this.canDrop = true;
       this.checkDanger(t);
     }
+
+    this.shots = this.shots.filter((sh) => t - sh.t0 < 700);
 
     // jelly spring update
     for (const d of this.cats.values()) {

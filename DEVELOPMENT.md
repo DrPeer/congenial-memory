@@ -18,9 +18,11 @@ dashed danger line = game over. Original v1 was a single-page web game; today it
 | OTA updates | EAS Update (channels dev/preview/production) | ✅ configured |
 | Installables | EAS Build (`.apk` free; `.ipa` needs Apple Dev $99) | ✅ scripted |
 
-**The v1 system is frozen.** `src/game/sim.ts` (matter-js physics, merge/combo/scoring,
-danger logic, timings) is byte-identical in behaviour to the first version. All work since
-has been visual/tooling only. Do not change gameplay numbers without an explicit user ask.
+**The v1 rules are the baseline.** `src/game/sim.ts` (matter-js physics, merge/combo/scoring,
+danger logic, timings) behaves like the first version; change existing numbers only on
+explicit user request. Post-v1 additions live in sim.ts so both platforms share them:
+overfull countdown fuse (`DANGER_FUSE_MS` + `dangerLeft`), coin minting (`MergeEvent.coins`),
+boosters `raiseCup()` / `shootTopCat()` (costs `BOOST_*`, cap `MAX_CUP_LIFT`, fx `sim.shots`).
 
 ## 2. Repository map
 

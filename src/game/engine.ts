@@ -79,6 +79,40 @@ export class KittyEngine {
   get combo() {
     return this.sim.combo;
   }
+  get cupLift() {
+    return this.sim.cupLift;
+  }
+  get coinsEarned() {
+    return this.sim.coinsEarned;
+  }
+
+  /** coin booster: shoot the topmost kitty out of the cup */
+  shootCat(): boolean {
+    const ok = this.sim.shootTopCat();
+    if (ok) {
+      sfx.shoot();
+      try {
+        navigator.vibrate?.(20);
+      } catch {
+        /* ignore */
+      }
+    }
+    return ok;
+  }
+
+  /** coin booster: stretch the cup taller */
+  boostRaiseCup(): boolean {
+    const ok = this.sim.raiseCup();
+    if (ok) {
+      sfx.raiseCup();
+      try {
+        navigator.vibrate?.([15, 20, 15]);
+      } catch {
+        /* ignore */
+      }
+    }
+    return ok;
+  }
 
   /* ---------- lifecycle ---------- */
 

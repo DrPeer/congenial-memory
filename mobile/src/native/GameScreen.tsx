@@ -7,6 +7,7 @@
  * Juice:         expo-haptics + expo-audio (WAV renditions of the web synth).
  */
 import { Canvas, Picture, Skia, type SkPicture } from "@shopify/react-native-skia";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
@@ -14,7 +15,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CATS, MAX_TIER, comboWord } from "../../../src/game/cats";
 import { renderScene } from "../../../src/game/render";
-import { KittySim, WORLD_H, WORLD_W, type MergeEvent } from "../../../src/game/sim";
+import {
+  BOOST_RAISE_COST,
+  BOOST_SHOOT_COST,
+  KittySim,
+  MAX_CUP_LIFT,
+  WORLD_H,
+  WORLD_W,
+  type MergeEvent,
+} from "../../../src/game/sim";
 import { activeTheme } from "../../../src/plugins/registry";
 import { catPicture } from "./catPicture";
 import { nativeSprites } from "./spritesNative";
@@ -59,10 +68,56 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
   const [unlocked, setUnlocked] = useState<Set<number>>(() => new Set([0, 1, 2, 3, 4]));
   const [showChain, setShowChain] = useState(false);
   const [runKey, setRunKey] = useState(0);
+  const [coins, setCoins] = useState(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem("kittydrop-coins")
+      .then((v) => setCoins(Number(v || 0) || 0))
+      .catch(() => {});
+  }, []);
+
+  const spendCoins = useCallback((n: number) => {
+    setCoins((c) => {
+      const v = Math.max(0, c - n);
+      AsyncStorage.setItem("kittydrop-coins", String(v)).catch(() => {});
+      return v;
+    });
+  }, []);
+
+  const earnCoins = useCallback((n: number) => {
+    setCoins((c) => {
+      const v = c + n;
+      AsyncStorage.setItem("kittydrop-coins", String(v)).catch(() => {});
+      return v;
+    });
+  }, []);
+
+  /* ------------------------------------------------------- boosters */
+
+  const shootBooster = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim || sim.over) return;
+    if (sim.shootTopCat()) {
+      sfx.shoot();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      spendCoins(BOOST_SHOOT_COST);
+    }
+  }, [spendCoins]);
+
+  const raiseBooster = useCallback(() => {
+    const sim = simRef.current;
+    if (!sim || sim.over || sim.cupLift >= MAX_CUP_LIFT) return;
+    if (sim.raiseCup()) {
+      sfx.raiseCup();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      spendCoins(BOOST_RAISE_COST);
+    }
+  }, [spendCoins]);
 
   /* ------------------------------------------------------- sim + render loop */
 
   const handleMerge = useCallback((e: MergeEvent) => {
+    earnCoins(e.coins);
     if (e.mega) {
       sfx.fanfare();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -82,7 +137,7 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
         color: e.combo >= 5 ? "#ff3d6e" : e.combo >= 3 ? "#8b5cf6" : "#ff8fb0",
       });
     }
-  }, []);
+  }, [earnCoins]);
 
   useEffect(() => {
     setOver(null);
@@ -239,6 +294,9 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
           <View style={styles.bestChip}>
             <Text style={styles.bestChipText}>👑 BEST {Math.max(best, score).toLocaleString()}</Text>
           </View>
+          <View style={styles.coinChip}>
+            <Text style={styles.coinChipText}>🪙 {coins.toLocaleString()}</Text>
+          </View>
         </View>
         <View style={styles.hudRight}>
           <View style={styles.nextBox}>
@@ -250,6 +308,22 @@ export default function GameScreen({ best, onBest, onExit }: Props) {
             </View>
           </View>
           <View style={styles.btnRow}>
+            <Pressable
+              style={[styles.boostBtn, { backgroundColor: "#bfe3ff" }, (coins < BOOST_SHOOT_COST || !!over || paused) && styles.boostOff]}
+              onPress={shootBooster}
+              disabled={coins < BOOST_SHOOT_COST || !!over || paused}
+            >
+              <Text style={styles.hudBtnText}>🎯</Text>
+              <Text style={styles.boostCost}>🪙{BOOST_SHOOT_COST}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.boostBtn, { backgroundColor: "#c9f2df" }, (coins < BOOST_RAISE_COST || !!over || paused) && styles.boostOff]}
+              onPress={raiseBooster}
+              disabled={coins < BOOST_RAISE_COST || !!over || paused}
+            >
+              <Text style={styles.hudBtnText}>🧺</Text>
+              <Text style={styles.boostCost}>🪙{BOOST_RAISE_COST}</Text>
+            </Pressable>
             <Pressable style={styles.hudBtn} onPress={() => setShowChain((s) => !s)}>
               <Text style={styles.hudBtnText}>🐾</Text>
             </Pressable>
@@ -422,6 +496,11 @@ const styles = StyleSheet.create({
   danger: { shadowColor: "#ff5078", shadowOpacity: 0.8, shadowRadius: 12, elevation: 6 },
   scoreLabel: { color: "#ffe4c8", fontSize: 10, fontWeight: "800", letterSpacing: 3 },
   scoreValue: { color: "#fff", fontSize: 24, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  coinChip: { borderRadius: 12, backgroundColor: "#ffd76a", paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start" },
+  coinChipText: { fontSize: 11, fontWeight: "700", color: "#7a5210" },
+  boostBtn: { flexDirection: "row", alignItems: "center", borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 2, borderColor: "#fff" },
+  boostCost: { fontSize: 9, fontWeight: "800", color: "#28577a", marginLeft: 2 },
+  boostOff: { opacity: 0.4 },
   bestChip: { backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   bestChipText: { color: "#a0506e", fontSize: 11, fontWeight: "700" },
   nextBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#a97c6a", borderRadius: 16, borderWidth: 3, borderColor: "#fff", paddingHorizontal: 8, paddingVertical: 4 },

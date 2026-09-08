@@ -49,6 +49,7 @@ export const GLYPH_SPRITE: Record<string, SpriteId> = {
   "🧶": "yarn",
   "🐟": "fish",
   "☁️": "cloud",
+  "💨": "cloud",
 };
 
 /** the v1 floating-decor slot list, expressed as sprites */
